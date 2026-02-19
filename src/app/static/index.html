@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Dispatcher System</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="logo" aria-hidden="true"></div>
+          <div>
+            <h1>Dispatcher Console</h1>
+            <p class="subtle">Log incoming incidents and track the active queue.</p>
+          </div>
+        </div>
+
+        <div class="status-pill" role="status" aria-live="polite">
+          <span id="health-dot" class="dot" aria-hidden="true"></span>
+          <span id="status">Connecting…</span>
+        </div>
+
+        <p class="subtle">
+          Tip: keep the queue open while taking calls. Use “Refresh” if you have multiple operators.
+        </p>
+      </aside>
+
+      <main class="main">
+        <div class="topbar">
+          <h2>Incident intake</h2>
+          <div class="actions">
+            <button id="refresh" class="btn" type="button">Refresh</button>
+          </div>
+        </div>
+
+        <div class="grid">
+          <section class="card" aria-label="Log new incident">
+            <h3>New incident</h3>
+            <form id="incident-form">
+              <div class="field">
+                <label for="caller_name">Caller name</label>
+                <input id="caller_name" name="caller_name" autocomplete="name" required />
+              </div>
+
+              <div class="field">
+                <label for="location">Location</label>
+                <input
+                  id="location"
+                  name="location"
+                  autocomplete="street-address"
+                  placeholder="e.g. Main St & 3rd"
+                  required
+                />
+              </div>
+
+              <div class="field">
+                <label for="description">Description</label>
+                <textarea
+                  id="description"
+                  name="description"
+                  placeholder="What happened? Any injuries? Hazards?"
+                  required
+                ></textarea>
+              </div>
+
+              <div class="form-row">
+                <button id="submit" class="btn primary" type="submit">Create incident</button>
+                <span class="subtle mono" id="queue-count"></span>
+              </div>
+            </form>
+            <p id="incident-message" class="message" aria-live="polite"></p>
+          </section>
+
+          <section class="card" aria-label="Incident queue">
+            <h3>Incident queue</h3>
+            <div id="queue-empty" class="empty" hidden>No incidents logged yet.</div>
+            <div style="overflow: auto">
+              <table class="table" aria-label="Incident table">
+                <thead>
+                  <tr>
+                    <th style="width: 90px">ID</th>
+                    <th style="width: 140px">Status</th>
+                    <th style="width: 180px">Caller</th>
+                    <th style="width: 220px">Location</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody id="incident-tbody"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script src="/static/main.js"></script>
+  </body>
+</html>
+
