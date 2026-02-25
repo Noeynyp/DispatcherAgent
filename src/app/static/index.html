@@ -1,101 +1,128 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Dispatcher System</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="stylesheet" href="/static/styles.css" />
-  </head>
-  <body>
-    <div class="app">
-      <aside class="sidebar">
-        <div class="brand">
-          <div class="logo" aria-hidden="true"></div>
-          <div>
-            <h1>Dispatcher Console</h1>
-            <p class="subtle">Log incoming incidents and track the active queue.</p>
-          </div>
-        </div>
+<html>
+<head>
+    <title>Dispatcher Simulation</title>
+    <style>
+        body { background: #111; color: white; text-align: center; font-family: Arial; }
+        .road { stroke: #888; stroke-width: 3; }
+        .node { fill: #ccc; }
+        .unit { stroke: white; stroke-width: 1; }
+    </style>
+</head>
+<body>
 
-        <div class="status-pill" role="status" aria-live="polite">
-          <span id="health-dot" class="dot" aria-hidden="true"></span>
-          <span id="status">Connecting…</span>
-        </div>
+<h2>Emergency Dispatcher Simulation</h2>
 
-        <p class="subtle">
-          Tip: keep the queue open while taking calls. Use “Refresh” if you have multiple operators.
-        </p>
-      </aside>
+<svg id="map" width="700" height="700"
+     viewBox="-50 -50 550 550"
+     style="background:#1e1e1e; border:1px solid #555;">
+</svg>
 
-      <main class="main">
-        <div class="topbar">
-          <h2>Incident intake</h2>
-          <div class="actions">
-            <button id="refresh" class="btn" type="button">Refresh</button>
-          </div>
-        </div>
+<div id="info" style="margin-top:20px;"></div>
 
-        <div class="grid">
-          <section class="card" aria-label="Log new incident">
-            <h3>New incident</h3>
-            <form id="incident-form">
-              <div class="field">
-                <label for="caller_name">Caller name</label>
-                <input id="caller_name" name="caller_name" autocomplete="name" required />
-              </div>
 
-              <div class="field">
-                <label for="location">Location</label>
-                <input
-                  id="location"
-                  name="location"
-                  autocomplete="street-address"
-                  placeholder="e.g. Main St & 3rd"
-                  required
-                />
-              </div>
+<script>
+let graphData = null;
 
-              <div class="field">
-                <label for="description">Description</label>
-                <textarea
-                  id="description"
-                  name="description"
-                  placeholder="What happened? Any injuries? Hazards?"
-                  required
-                ></textarea>
-              </div>
+async function loadGraph() {
+    const graphRes = await fetch("/graph");
+    graphData = await graphRes.json();
 
-              <div class="form-row">
-                <button id="submit" class="btn primary" type="submit">Create incident</button>
-                <span class="subtle mono" id="queue-count"></span>
-              </div>
-            </form>
-            <p id="incident-message" class="message" aria-live="polite"></p>
-          </section>
+    const svg = document.getElementById("map");
+    svg.innerHTML = "";
 
-          <section class="card" aria-label="Incident queue">
-            <h3>Incident queue</h3>
-            <div id="queue-empty" class="empty" hidden>No incidents logged yet.</div>
-            <div style="overflow: auto">
-              <table class="table" aria-label="Incident table">
-                <thead>
-                  <tr>
-                    <th style="width: 90px">ID</th>
-                    <th style="width: 140px">Status</th>
-                    <th style="width: 180px">Caller</th>
-                    <th style="width: 220px">Location</th>
-                    <th>Description</th>
-                  </tr>
-                </thead>
-                <tbody id="incident-tbody"></tbody>
-              </table>
-            </div>
-          </section>
-        </div>
-      </main>
-    </div>
+    // Draw roads
+    graphData.edges.forEach(e => {
+        const n1 = graphData.nodes.find(n => n.id === e.from);
+        const n2 = graphData.nodes.find(n => n.id === e.to);
 
-    <script src="/static/main.js"></script>
-  </body>
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", n1.x);
+        line.setAttribute("y1", n1.y);
+        line.setAttribute("x2", n2.x);
+        line.setAttribute("y2", n2.y);
+        line.setAttribute("class", "road");
+        svg.appendChild(line);
+    });
+
+    // Draw nodes
+    graphData.nodes.forEach(n => {
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", n.x);
+        circle.setAttribute("cy", n.y);
+        circle.setAttribute("r", 8);
+        circle.setAttribute("class", "node");
+        circle.style.cursor = "pointer";
+
+        circle.addEventListener("click", () => {
+            createIncident(n.id);
+        });
+
+        svg.appendChild(circle);
+    });
+
+    createUnitCircles();
+}
+
+async function createUnitCircles() {
+    const res = await fetch("/state");
+    const data = await res.json();
+
+    const svg = document.getElementById("map");
+
+    data.units.forEach(u => {
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("id", u.id);
+        circle.setAttribute("r", 10);
+        circle.setAttribute("class", "unit");
+
+        if (u.service === "fire") circle.setAttribute("fill", "red");
+        if (u.service === "medical") circle.setAttribute("fill", "lime");
+        if (u.service === "police") circle.setAttribute("fill", "cyan");
+
+        svg.appendChild(circle);
+    });
+}
+
+async function update() {
+    const res = await fetch("/state");
+    const data = await res.json();
+
+    data.units.forEach(u => {
+        const el = document.getElementById(u.id);
+        if (el) {
+            el.setAttribute("cx", u.x);
+            el.setAttribute("cy", u.y);
+        }
+    });
+}
+
+async function createIncident(nodeId) {
+
+    const type = prompt("Type: fire / medical / accident");
+    const severity = parseInt(prompt("Severity (1-5):"));
+
+    if (!type || !severity) return;
+
+    const res = await fetch(`/create_incident`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            node: nodeId,
+            type: type,
+            severity: severity
+        })
+    });
+
+    const data = await res.json();
+
+    document.getElementById("info").innerText =
+        `Assigned: ${data.assigned}\n${data.explanation}`;
+}
+
+loadGraph();
+setInterval(update, 100);
+</script>
+
+</body>
 </html>
-

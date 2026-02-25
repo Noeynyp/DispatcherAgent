@@ -1,91 +1,130 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Tuple, Optional
 import math
 import networkx as nx
 
 
+UNIT_SPEED = 20.0
+
 @dataclass
 class UnitState:
     id: str
     service: str
-    path: List[str]
+    current_node: str
+    path: List[str] = field(default_factory=list)
     edge_index: int = 0
     progress: float = 0.0
-    speed: float = 20.0  # units per second
-
-    def current_edge(self) -> Optional[Tuple[str, str]]:
-        if self.edge_index + 1 < len(self.path):
-            return (self.path[self.edge_index], self.path[self.edge_index + 1])
-        return None
-
+    status: str = "idle"
+    handling_remaining: float = 0.0
 
 def euclid(a: Tuple[float, float], b: Tuple[float, float]) -> float:
     return math.hypot(b[0] - a[0], b[1] - a[1])
 
 
-def compute_position(unit: UnitState, G: nx.Graph) -> Tuple[float, float]:
-    edge = unit.current_edge()
-    if edge is None:
-        return G.nodes[unit.path[-1]]["pos"]
+def compute_position(unit, G):
+    if not unit.path or len(unit.path) < 2:
+        return G.nodes[unit.current_node]["pos"]
 
+    edge = (unit.path[unit.edge_index], unit.path[unit.edge_index + 1])
     a = G.nodes[edge[0]]["pos"]
     b = G.nodes[edge[1]]["pos"]
 
-    return (
-        a[0] + unit.progress * (b[0] - a[0]),
-        a[1] + unit.progress * (b[1] - a[1]),
-    )
+    x = a[0] + unit.progress * (b[0] - a[0])
+    y = a[1] + unit.progress * (b[1] - a[1])
+    return (x, y)
 
 
-def advance_unit(unit: UnitState, dt: float, G: nx.Graph):
-    edge = unit.current_edge()
-    if edge is None:
-        return
+def advance_unit(unit, dt, G):
 
+    # -------------------
+    # HANDLING PHASE
+    # -------------------
+    if unit.status == "handling":
+        unit.handling_remaining -= dt
+
+        if unit.handling_remaining <= 0:
+            unit.status = "idle"
+            return ("finished_handling", unit.id)
+
+        return None
+
+    # -------------------
+    # MOVEMENT PHASE
+    # -------------------
+    if not unit.path or len(unit.path) < 2:
+        return None
+
+    edge = (unit.path[unit.edge_index], unit.path[unit.edge_index + 1])
     a = G.nodes[edge[0]]["pos"]
     b = G.nodes[edge[1]]["pos"]
-    edge_len = euclid(a, b)
 
-    if edge_len == 0:
-        return
+    edge_length = ((b[0] - a[0])**2 + (b[1] - a[1])**2) ** 0.5
 
-    distance = unit.speed * dt
-    frac = distance / edge_len
-    unit.progress += frac
+    if edge_length == 0:
+        return None
 
-    while unit.progress >= 1.0 and unit.edge_index + 1 < len(unit.path) - 1:
-        unit.progress -= 1.0
-        unit.edge_index += 1
+    unit.progress += (UNIT_SPEED * dt) / edge_length
 
     if unit.progress >= 1.0:
         unit.progress = 0.0
-        unit.edge_index = len(unit.path) - 1
+        unit.edge_index += 1
 
+        if unit.edge_index >= len(unit.path) - 1:
+            unit.current_node = unit.path[-1]
+            unit.path = []
+            return ("arrived", unit.id)
 
-def remaining_time_to_node(unit: UnitState, target_node: str, G: nx.Graph) -> float:
-    edge = unit.current_edge()
-    remaining_distance = 0.0
+    return None
 
-    if edge is None:
-        start_node = unit.path[-1]
+def remaining_time_to_node(unit, target_node, G):
+
+    # If unit is idle → start from its current node
+    if len(unit.path) < 2:
+        start_node = unit.current_node
+        try:
+            path = nx.shortest_path(G, start_node, target_node, weight="weight")
+            distance = 0.0
+            for a, b in zip(path, path[1:]):
+                distance += G.edges[a, b]["weight"]
+            return distance / UNIT_SPEED
+        except nx.NetworkXNoPath:
+            return float("inf")
+
+    # If unit is moving
+    # 1️⃣ Remaining distance on current edge
+    a = unit.path[unit.edge_index]
+    b = unit.path[unit.edge_index + 1]
+
+    pos_a = G.nodes[a]["pos"]
+    pos_b = G.nodes[b]["pos"]
+
+    edge_length = math.dist(pos_a, pos_b)
+    remaining_edge_distance = (1 - unit.progress) * edge_length
+
+    # 2️⃣ Remaining path after this edge
+    remaining_path_distance = 0.0
+
+    if unit.edge_index + 1 < len(unit.path) - 1:
+        next_node = unit.path[unit.edge_index + 1]
+        remaining_nodes = unit.path[unit.edge_index + 1:]
+
+        for x, y in zip(remaining_nodes, remaining_nodes[1:]):
+            remaining_path_distance += G.edges[x, y]["weight"]
     else:
-        a = G.nodes[edge[0]]["pos"]
-        b = G.nodes[edge[1]]["pos"]
-        edge_len = euclid(a, b)
-        remaining_distance += (1.0 - unit.progress) * edge_len
-        start_node = edge[1]
+        next_node = unit.path[-1]
 
+    # 3️⃣ Distance from last path node to target
     try:
-        path = nx.shortest_path(G, start_node, target_node, weight="weight")
-        for u, v in zip(path, path[1:]):
-            remaining_distance += G.edges[u, v]["weight"]
+        path = nx.shortest_path(G, next_node, target_node, weight="weight")
+        extra_distance = 0.0
+        for a, b in zip(path, path[1:]):
+            extra_distance += G.edges[a, b]["weight"]
     except nx.NetworkXNoPath:
         return float("inf")
 
-    if unit.speed <= 0:
-        return float("inf")
+    total_distance = remaining_edge_distance + remaining_path_distance + extra_distance
 
-    return remaining_distance / unit.speed
+    return total_distance / UNIT_SPEED
 
 
 def snap_to_nearest_node(pos: Tuple[float, float], G: nx.Graph) -> str:
@@ -104,14 +143,30 @@ def snap_to_nearest_node(pos: Tuple[float, float], G: nx.Graph) -> str:
 def create_sample_graph() -> nx.Graph:
     G = nx.Graph()
 
-    G.add_node("n1", pos=(0, 0))
-    G.add_node("n2", pos=(100, 0))
-    G.add_node("n3", pos=(100, 100))
-    G.add_node("n4", pos=(0, 100))
+    size = 5
+    spacing = 100
 
-    for a, b in [("n1", "n2"), ("n2", "n3"), ("n3", "n4"), ("n4", "n1"), ("n1", "n3")]:
-        pa = G.nodes[a]["pos"]
-        pb = G.nodes[b]["pos"]
-        G.add_edge(a, b, weight=euclid(pa, pb))
+    # Create grid nodes
+    for i in range(size):
+        for j in range(size):
+            node_id = f"n{i}_{j}"
+            G.add_node(node_id, pos=(i * spacing, j * spacing))
+
+    # Connect neighbors
+    for i in range(size):
+        for j in range(size):
+            node = f"n{i}_{j}"
+
+            if i < size - 1:
+                right = f"n{i+1}_{j}"
+                pa = G.nodes[node]["pos"]
+                pb = G.nodes[right]["pos"]
+                G.add_edge(node, right, weight=euclid(pa, pb))
+
+            if j < size - 1:
+                up = f"n{i}_{j+1}"
+                pa = G.nodes[node]["pos"]
+                pb = G.nodes[up]["pos"]
+                G.add_edge(node, up, weight=euclid(pa, pb))
 
     return G

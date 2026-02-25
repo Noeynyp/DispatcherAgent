@@ -50,59 +50,73 @@ effective_response_time(Unit, Incident, TotalTime) :-
     TotalTime is Travel + Remaining.
 
 % ----------------------------------------
-% UNIT SELECTION
+% CANDIDATE UNIT SELECTION (NO BLIND REASSIGNMENT)
 % ----------------------------------------
 
-candidate_unit(IncidentId, Unit, Time) :-
+% Only AVAILABLE units are candidates.
+% Assigned units are NOT automatically considered.
+% Reassignment will be implemented later explicitly.
+
+candidate_unit(IncidentId, Service, Unit, Time) :-
     incident(IncidentId, Type, _, _, _, _),
     required_service(Type, Service),
-    unit(Unit, Service, _, Status, _),
-    ( Status = available ; assigned(Unit, _) ),
+    unit(Unit, Service, _, available, _),
     effective_response_time(Unit, IncidentId, Time).
 
-select_best_unit(IncidentId, BestUnit) :-
+% ----------------------------------------
+% SELECT BEST UNIT FOR A GIVEN SERVICE
+% ----------------------------------------
+
+select_best_unit_for_service(IncidentId, Service, BestUnit) :-
     findall(Time-Unit,
-        candidate_unit(IncidentId, Unit, Time),
+        candidate_unit(IncidentId, Service, Unit, Time),
         Pairs),
     Pairs \= [],
     sort(Pairs, Sorted),
     Sorted = [_-BestUnit | _].
 
 % ----------------------------------------
-% ASSIGNMENT
+% MULTI-SERVICE DISPATCH
 % ----------------------------------------
 
-assign_unit(Unit, Incident) :-
-    retractall(assigned(Unit, _)),
-    retract(unit(Unit, S, L, _, N)),
-    assertz(unit(Unit, S, L, busy, N)),
-    assertz(assigned(Unit, Incident)).
+% For each required service,
+% select the best available unit.
+% Returns a list like:
+%   [medical-m1, police-p2]
 
-dispatch(IncidentId, Unit, Explanation) :-
-    select_best_unit(IncidentId, Unit),
-    assign_unit(Unit, IncidentId),
+dispatch(IncidentId, Assignments, Explanation) :-
+    findall(Service-Unit,
+        (
+            required_service_for_incident(IncidentId, Service),
+            select_best_unit_for_service(IncidentId, Service, Unit)
+        ),
+        Assignments),
+    Assignments \= [],
+    build_explanation(IncidentId, Assignments, Explanation).
+
+% Helper: get required services for an incident
+required_service_for_incident(IncidentId, Service) :-
+    incident(IncidentId, Type, _, _, _, _),
+    required_service(Type, Service).
+
+% ----------------------------------------
+% EXPLANATION GENERATION
+% ----------------------------------------
+
+build_explanation(IncidentId, Assignments, Explanation) :-
+    incident(IncidentId, Type, _, _, _, Urg),
+    format_assignments(Assignments, AssignmentText),
     format(atom(Explanation),
-        'Unit ~w dispatched to incident ~w using effective response time selection.',
-        [Unit, IncidentId]).
+        'Incident ~w (type=~w, urgency=~w). Dispatched: ~w.',
+        [IncidentId, Type, Urg, AssignmentText]).
 
-% ----------------------------------------
-% REASSIGNMENT LOGIC
-% ----------------------------------------
-
-should_reassign(Unit, OldIncident, NewIncident) :-
-    incident(OldIncident, _, _, _, _, OldUrg),
-    incident(NewIncident, _, _, _, _, NewUrg),
-    urgency_rank(NewUrg, R1),
-    urgency_rank(OldUrg, R0),
-    R1 > R0,
-    effective_response_time(Unit, NewIncident, NewET),
-    effective_response_time(Unit, OldIncident, OldET),
-    NewET < OldET.
-
-reassign(Unit, OldIncident, NewIncident) :-
-    should_reassign(Unit, OldIncident, NewIncident),
-    retract(assigned(Unit, OldIncident)),
-    assertz(assigned(Unit, NewIncident)).
+format_assignments([], '').
+format_assignments([Service-Unit], Text) :-
+    format(atom(Text), '~w unit ~w', [Service, Unit]).
+format_assignments([Service-Unit | Rest], Text) :-
+    format_assignments(Rest, RestText),
+    format(atom(Text), '~w unit ~w, ~w',
+        [Service, Unit, RestText]).
 
 % ----------------------------------------
 % URGENCY ESCALATION
@@ -127,14 +141,3 @@ escalate_urgency(IncidentId, CurrentTime) :-
     R1 > R0,
     retract(incident(IncidentId, Type, Sev, Loc, ReportedTime, Urg)),
     assertz(incident(IncidentId, Type, Sev, Loc, ReportedTime, NewUrg)).
-
-% ----------------------------------------
-% EXPLANATION
-% ----------------------------------------
-
-explain_assignment(IncidentId, Unit, Explanation) :-
-    incident(IncidentId, Type, _, _, _, Urg),
-    effective_response_time(Unit, IncidentId, T),
-    format(atom(Explanation),
-        'Unit ~w selected for incident type ~w (urgency=~w) with total response time ~2f seconds.',
-        [Unit, Type, Urg, T]).
