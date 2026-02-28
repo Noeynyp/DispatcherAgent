@@ -1,50 +1,90 @@
+import sys
+import types
+import threading
+
 from fastapi.testclient import TestClient
 
-from app.main import app, _INCIDENTS  # type: ignore
+# Prevent the simulation background thread from starting during import
+_orig_thread = threading.Thread
 
+class _DummyThread:
+    def __init__(self, *args, **kwargs):
+        pass
+    def start(self):
+        return None
 
-client = TestClient(app)
+threading.Thread = _DummyThread
+
+# Provide a lightweight fake for pyswip so Prolog import succeeds
+_pyswip = types.ModuleType("pyswip")
+class _FakeProlog:
+    def consult(self, *a, **k):
+        return None
+    def query(self, *a, **k):
+        return []
+_pyswip.Prolog = _FakeProlog
+sys.modules["pyswip"] = _pyswip
+
+# Import the app after mocks
+from app import main as app_main
+
+# Restore threading
+threading.Thread = _orig_thread
+
+client = TestClient(app_main.app)
 
 
 def setup_function() -> None:
     # Reset in-memory store between tests
-    _INCIDENTS.clear()
+    app_main.incidents.clear()
+
+
+class _FakeEngine:
+    def __init__(self):
+        self.prolog = types.SimpleNamespace(query=lambda *a, **k: [])
+    def assert_incident(self, *a, **k):
+        return None
+    def assert_travel_time(self, *a, **k):
+        return None
+    def dispatch(self, incident_id):
+        # return a deterministic assignment for tests
+        return [("fire", "f1")], "dispatched for test"
+    def assert_handling_time(self, *a, **k):
+        return None
+    def clear_assignment(self, *a, **k):
+        return None
+    def update_unit_status(self, *a, **k):
+        return None
 
 
 def test_create_incident():
-    payload = {
-        "caller_name": "Alice",
-        "location": "Main St & 3rd",
-        "description": "Car accident, two vehicles involved",
-    }
+    # Patch the engine and selected value to avoid source-side dependencies
+    app_main.engine = _FakeEngine()
+    app_main.selected = ["f1"]
 
-    response = client.post("/api/incidents", json=payload)
-    assert response.status_code == 201
+    payload = {"node": "n0_0", "type": "fire", "severity": 3}
+
+    response = client.post("/create_incident", json=payload)
+    assert response.status_code == 200
 
     data = response.json()
-    assert data["id"] == 1
-    assert data["caller_name"] == payload["caller_name"]
-    assert data["location"] == payload["location"]
-    assert data["description"] == payload["description"]
-    assert data["status"] == "new"
+    assert data["assigned"] == app_main.selected
+    assert data["explanation"] == "dispatched for test"
 
 
-def test_list_incidents_after_creation():
-    # Arrange: create one incident
-    create_payload = {
-        "caller_name": "Bob",
-        "location": "5th Ave",
-        "description": "Medical emergency",
-    }
-    create_response = client.post("/api/incidents", json=create_payload)
-    assert create_response.status_code == 201
+def test_incident_recorded():
+    # Ensure incidents dict contains the newly created incident
+    setup_function()
+    app_main.engine = _FakeEngine()
+    app_main.selected = ["f1"]
 
-    # Act: list incidents
-    list_response = client.get("/api/incidents")
-    assert list_response.status_code == 200
+    payload = {"node": "n0_0", "type": "medical", "severity": 2}
+    resp = client.post("/create_incident", json=payload)
+    assert resp.status_code == 200
 
-    incidents = list_response.json()
-    assert len(incidents) == 1
-    assert incidents[0]["caller_name"] == "Bob"
-    assert incidents[0]["status"] == "new"
+    # There should be one incident recorded in memory
+    assert len(app_main.incidents) == 1
+    inc = list(app_main.incidents.values())[0]
+    assert inc.type == "medical"
+    assert inc.status == "assigned"
 

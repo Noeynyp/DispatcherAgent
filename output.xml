@@ -1,0 +1,370 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<robot generator="Robot 7.4.1 (Python 3.11.4 on win32)" generated="2026-02-26T18:30:31.980614" rpa="false" schemaversion="5">
+<suite id="s1" name="Tests" source="C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\tests">
+<suite id="s1-s1" name="Robot" source="C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\tests\robot">
+<suite id="s1-s1-s1" name="Api Tests" source="C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\tests\robot\api_tests.robot">
+<test id="s1-s1-s1-t1" name="Create Incident And Verify Assignment" line="9">
+<kw name="Create Session" owner="RequestsLibrary">
+<msg time="2026-02-26T18:30:32.115234" level="INFO">Creating Session using : alias=dispatcher, url=http://127.0.0.1:8000, headers={},                     cookies={}, auth=None, timeout=None, proxies=None, verify=False,                     debug=0 </msg>
+<arg>dispatcher</arg>
+<arg>${BASE}</arg>
+<doc>Create Session: create a HTTP session to a server</doc>
+<status status="PASS" start="2026-02-26T18:30:32.115234" elapsed="0.000000"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-02-26T18:30:32.115234" level="INFO">${payload} = {'node': 'n0_0', 'type': 'fire', 'severity': 3}</msg>
+<var>${payload}</var>
+<arg>{'node': 'n0_0', 'type': 'fire', 'severity': 3}</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-02-26T18:30:32.115234" elapsed="0.000000"/>
+</kw>
+<kw name="Post Request" owner="RequestsLibrary">
+<msg time="2026-02-26T18:30:32.115234" level="WARN">Keyword 'RequestsLibrary.Post Request' is deprecated. Please use `POST On Session` instead.</msg>
+<msg time="2026-02-26T18:30:34.160045" level="WARN">Retrying (RetryAdapter(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /create_incident</msg>
+<msg time="2026-02-26T18:30:36.386505" level="WARN">Retrying (RetryAdapter(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /create_incident</msg>
+<msg time="2026-02-26T18:30:38.810193" level="WARN">Retrying (RetryAdapter(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /create_incident</msg>
+<msg time="2026-02-26T18:30:40.847276" level="FAIL">ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: /create_incident (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))</msg>
+<var>${resp}</var>
+<arg>dispatcher</arg>
+<arg>/create_incident</arg>
+<arg>json=${payload}</arg>
+<doc>*DEPRECATED* Please use `POST On Session` instead.</doc>
+<status status="FAIL" start="2026-02-26T18:30:32.115234" elapsed="8.732042">ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: /create_incident (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))</status>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<arg>${resp.status_code}</arg>
+<arg>200</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="NOT RUN" start="2026-02-26T18:30:40.847276" elapsed="0.000000"/>
+</kw>
+<kw name="To Json">
+<var>${body}</var>
+<arg>${resp.content}</arg>
+<status status="NOT RUN" start="2026-02-26T18:30:40.847276" elapsed="0.000000"/>
+</kw>
+<kw name="Dictionary Should Contain Key" owner="Collections">
+<arg>${body}</arg>
+<arg>assigned</arg>
+<doc>Fails if ``key`` is not found from ``dictionary``.</doc>
+<status status="NOT RUN" start="2026-02-26T18:30:40.847276" elapsed="0.000000"/>
+</kw>
+<kw name="Dictionary Should Contain Key" owner="Collections">
+<arg>${body}</arg>
+<arg>explanation</arg>
+<doc>Fails if ``key`` is not found from ``dictionary``.</doc>
+<status status="NOT RUN" start="2026-02-26T18:30:40.847276" elapsed="0.000000"/>
+</kw>
+<tag>api</tag>
+<status status="FAIL" start="2026-02-26T18:30:32.113487" elapsed="8.733789">ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: /create_incident (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))</status>
+</test>
+<test id="s1-s1-s1-t2" name="Get Graph And State" line="19">
+<kw name="Create Session" owner="RequestsLibrary">
+<msg time="2026-02-26T18:30:40.847276" level="INFO">Creating Session using : alias=dispatcher, url=http://127.0.0.1:8000, headers={},                     cookies={}, auth=None, timeout=None, proxies=None, verify=False,                     debug=0 </msg>
+<arg>dispatcher</arg>
+<arg>${BASE}</arg>
+<doc>Create Session: create a HTTP session to a server</doc>
+<status status="PASS" start="2026-02-26T18:30:40.847276" elapsed="0.000000"/>
+</kw>
+<kw name="Get Request" owner="RequestsLibrary">
+<msg time="2026-02-26T18:30:40.847276" level="WARN">Keyword 'RequestsLibrary.Get Request' is deprecated. Please use `GET On Session` instead.</msg>
+<msg time="2026-02-26T18:30:42.889563" level="WARN">Retrying (RetryAdapter(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /graph</msg>
+<msg time="2026-02-26T18:30:45.139336" level="WARN">Retrying (RetryAdapter(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /graph</msg>
+<msg time="2026-02-26T18:30:47.584236" level="WARN">Retrying (RetryAdapter(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /graph</msg>
+<msg time="2026-02-26T18:30:49.628228" level="FAIL">ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: /graph (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))</msg>
+<var>${g}</var>
+<arg>dispatcher</arg>
+<arg>/graph</arg>
+<doc>*DEPRECATED* Please use `GET On Session` instead.</doc>
+<status status="FAIL" start="2026-02-26T18:30:40.847276" elapsed="8.780952">ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: /graph (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))</status>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<arg>${g.status_code}</arg>
+<arg>200</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="NOT RUN" start="2026-02-26T18:30:49.628228" elapsed="0.000000"/>
+</kw>
+<kw name="Get Request" owner="RequestsLibrary">
+<msg time="2026-02-26T18:30:49.628228" level="WARN">Keyword 'RequestsLibrary.Get Request' is deprecated. Please use `GET On Session` instead.</msg>
+<var>${s}</var>
+<arg>dispatcher</arg>
+<arg>/state</arg>
+<doc>*DEPRECATED* Please use `GET On Session` instead.</doc>
+<status status="NOT RUN" start="2026-02-26T18:30:49.628228" elapsed="0.000000"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<arg>${s.status_code}</arg>
+<arg>200</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="NOT RUN" start="2026-02-26T18:30:49.628228" elapsed="0.000000"/>
+</kw>
+<kw name="To Json">
+<var>${json}</var>
+<arg>${s.content}</arg>
+<status status="NOT RUN" start="2026-02-26T18:30:49.631625" elapsed="0.000000"/>
+</kw>
+<kw name="Dictionary Should Contain Key" owner="Collections">
+<arg>${json}</arg>
+<arg>units</arg>
+<doc>Fails if ``key`` is not found from ``dictionary``.</doc>
+<status status="NOT RUN" start="2026-02-26T18:30:49.631625" elapsed="0.000000"/>
+</kw>
+<tag>api</tag>
+<status status="FAIL" start="2026-02-26T18:30:40.847276" elapsed="8.784349">ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: /graph (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))</status>
+</test>
+<status status="FAIL" start="2026-02-26T18:30:32.016041" elapsed="17.615584"/>
+</suite>
+<suite id="s1-s1-s2" name="Run Visual" source="C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\tests\robot\run_visual.robot">
+<test id="s1-s1-s2-t1" name="Visual Playwright Click (external)" line="9">
+<kw name="Run Process" owner="Process">
+<msg time="2026-02-26T18:30:49.640268" level="INFO">Starting process:
+"C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\tests\robot.....venvScriptspython.exe" "C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\tests\robotvisual_demo.py" 15</msg>
+<msg time="2026-02-26T18:30:49.640268" level="FAIL">FileNotFoundError: [WinError 2] The system cannot find the file specified</msg>
+<arg>${PY}</arg>
+<arg>C:\\Users\\Maxkh\\OneDrive\\Documents\\Code\\Team Project\\DispatcherAgent\\tests\\robot\visual_demo.py</arg>
+<arg>${DELAY}</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="FAIL" start="2026-02-26T18:30:49.640268" elapsed="0.004933">FileNotFoundError: [WinError 2] The system cannot find the file specified</status>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<arg>${rc}</arg>
+<arg>0</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="NOT RUN" start="2026-02-26T18:30:49.645201" elapsed="0.000000"/>
+</kw>
+<tag>visual</tag>
+<status status="FAIL" start="2026-02-26T18:30:49.640268" elapsed="0.004933">FileNotFoundError: [WinError 2] The system cannot find the file specified</status>
+</test>
+<status status="FAIL" start="2026-02-26T18:30:49.633044" elapsed="0.013170"/>
+</suite>
+<suite id="s1-s1-s3" name="Ui Playwright" source="C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\tests\robot\ui_playwright.robot">
+<test id="s1-s1-s3-t1" name="Open UI And Trigger Incident (visual)" line="10">
+<kw name="New Browser" owner="Browser">
+<msg time="2026-02-26T18:30:49.935836" level="INFO">{"browser": "chromium", "headless": false, "chromiumSandbox": false, "devtools": false, "handleSIGHUP": true, "handleSIGINT": true, "handleSIGTERM": true, "slowMo": 0.0, "timeout": 30000.0, "tracesDir": "C:\\Users\\Maxkh\\OneDrive\\Documents\\Code\\Team Project\\DispatcherAgent\\browser\\traces\\temp\\48fa4e81-ffdb-47e5-b301-f9a93776e200"}</msg>
+<msg time="2026-02-26T18:30:49.998171" level="FAIL">
+#############################################################
+#                                                           #
+#  RF-Browser dependencies not found in installation path!  #
+#           Run `rfbrowser init` to install.                #
+#                                                           #
+#############################################################
+Installation path: C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\.venv\Lib\site-packages\Browser\wrapper</msg>
+<arg>headless=False</arg>
+<tag>BrowserControl</tag>
+<tag>Setter</tag>
+<doc>Create a new playwright Browser with specified options.</doc>
+<status status="FAIL" start="2026-02-26T18:30:49.932665" elapsed="0.078493">
+#############################################################
+#                                                           #
+#  RF-Browser dependencies not found in installation path!  #
+#           Run `rfbrowser init` to install.                #
+#                                                           #
+#############################################################
+Installation path: C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\.venv\Lib\site-packages\Browser\wrapper</status>
+</kw>
+<kw name="New Page" owner="Browser">
+<arg>${BASE}/</arg>
+<tag>BrowserControl</tag>
+<tag>Setter</tag>
+<doc>Open a new Page.</doc>
+<status status="NOT RUN" start="2026-02-26T18:30:50.011158" elapsed="0.000000"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<arg>1s</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="NOT RUN" start="2026-02-26T18:30:50.011158" elapsed="0.000000"/>
+</kw>
+<kw name="Execute JavaScript">
+<arg>window._prompts = ['fire','3']; window.prompt = function(){ return window._prompts.shift(); }</arg>
+<status status="NOT RUN" start="2026-02-26T18:30:50.011158" elapsed="0.000000"/>
+</kw>
+<kw name="Wait For Elements State" owner="Browser">
+<arg>css=svg circle.node</arg>
+<arg>visible</arg>
+<arg>timeout=5s</arg>
+<tag>PageContent</tag>
+<tag>Wait</tag>
+<doc>Waits for the element found by ``selector`` to satisfy state option.</doc>
+<status status="NOT RUN" start="2026-02-26T18:30:50.011158" elapsed="0.000000"/>
+</kw>
+<kw name="Execute JavaScript">
+<arg>document.querySelectorAll('svg circle.node')[0].dispatchEvent(new MouseEvent('click', {bubbles:true, cancelable:true}));</arg>
+<status status="NOT RUN" start="2026-02-26T18:30:50.011158" elapsed="0.000000"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<arg>0.5s</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="NOT RUN" start="2026-02-26T18:30:50.011158" elapsed="0.000000"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<arg>${VISUAL_DELAY}</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="NOT RUN" start="2026-02-26T18:30:50.011158" elapsed="0.000000"/>
+</kw>
+<kw name="Close Browser" owner="Browser">
+<tag>BrowserControl</tag>
+<tag>Setter</tag>
+<doc>Closes the current browser.</doc>
+<status status="NOT RUN" start="2026-02-26T18:30:50.011158" elapsed="0.000000"/>
+</kw>
+<tag>ui_playwright</tag>
+<status status="FAIL" start="2026-02-26T18:30:49.932665" elapsed="0.081377">
+#############################################################
+#                                                           #
+#  RF-Browser dependencies not found in installation path!  #
+#           Run `rfbrowser init` to install.                #
+#                                                           #
+#############################################################
+Installation path: C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\.venv\Lib\site-packages\Browser\wrapper</status>
+</test>
+<status status="FAIL" start="2026-02-26T18:30:49.646214" elapsed="0.390160"/>
+</suite>
+<suite id="s1-s1-s4" name="Ui Tests" source="C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\tests\robot\ui_tests.robot">
+<test id="s1-s1-s4-t1" name="Root Page Contains Frontend" line="9">
+<kw name="Create Session" owner="RequestsLibrary">
+<msg time="2026-02-26T18:30:50.061391" level="INFO">Creating Session using : alias=dispatcher, url=http://127.0.0.1:8000, headers={},                     cookies={}, auth=None, timeout=None, proxies=None, verify=False,                     debug=0 </msg>
+<arg>dispatcher</arg>
+<arg>${BASE}</arg>
+<doc>Create Session: create a HTTP session to a server</doc>
+<status status="PASS" start="2026-02-26T18:30:50.061391" elapsed="0.000000"/>
+</kw>
+<kw name="Get Request" owner="RequestsLibrary">
+<msg time="2026-02-26T18:30:50.061391" level="WARN">Keyword 'RequestsLibrary.Get Request' is deprecated. Please use `GET On Session` instead.</msg>
+<msg time="2026-02-26T18:30:52.089224" level="WARN">Retrying (RetryAdapter(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /</msg>
+<msg time="2026-02-26T18:30:54.296178" level="WARN">Retrying (RetryAdapter(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /</msg>
+<msg time="2026-02-26T18:30:56.725095" level="WARN">Retrying (RetryAdapter(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /</msg>
+<msg time="2026-02-26T18:30:58.766029" level="FAIL">ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: / (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))</msg>
+<var>${r}</var>
+<arg>dispatcher</arg>
+<arg>/</arg>
+<doc>*DEPRECATED* Please use `GET On Session` instead.</doc>
+<status status="FAIL" start="2026-02-26T18:30:50.061391" elapsed="8.704638">ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: / (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))</status>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<arg>${r.status_code}</arg>
+<arg>200</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="NOT RUN" start="2026-02-26T18:30:58.766029" elapsed="0.000000"/>
+</kw>
+<kw name="Convert To String" owner="BuiltIn">
+<var>${text}</var>
+<arg>${r.content}</arg>
+<doc>Converts the given item to a Unicode string.</doc>
+<status status="NOT RUN" start="2026-02-26T18:30:58.766029" elapsed="0.000000"/>
+</kw>
+<kw name="Should Contain" owner="BuiltIn">
+<arg>${text}</arg>
+<arg>Emergency Dispatcher Simulation</arg>
+<doc>Fails if ``container`` does not contain ``item`` one or more times.</doc>
+<status status="NOT RUN" start="2026-02-26T18:30:58.766029" elapsed="0.000000"/>
+</kw>
+<tag>ui</tag>
+<status status="FAIL" start="2026-02-26T18:30:50.061391" elapsed="8.704638">ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: / (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))</status>
+</test>
+<test id="s1-s1-s4-t2" name="Create Incident Via UI Endpoint" line="17">
+<kw name="Create Session" owner="RequestsLibrary">
+<msg time="2026-02-26T18:30:58.766029" level="INFO">Creating Session using : alias=dispatcher, url=http://127.0.0.1:8000, headers={},                     cookies={}, auth=None, timeout=None, proxies=None, verify=False,                     debug=0 </msg>
+<arg>dispatcher</arg>
+<arg>${BASE}</arg>
+<doc>Create Session: create a HTTP session to a server</doc>
+<status status="PASS" start="2026-02-26T18:30:58.766029" elapsed="0.000000"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-02-26T18:30:58.766029" level="INFO">${payload} = {'node': 'n0_0', 'type': 'medical', 'severity': 2}</msg>
+<var>${payload}</var>
+<arg>{'node': 'n0_0', 'type': 'medical', 'severity': 2}</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-02-26T18:30:58.766029" elapsed="0.000000"/>
+</kw>
+<kw name="Post Request" owner="RequestsLibrary">
+<msg time="2026-02-26T18:30:58.766029" level="WARN">Keyword 'RequestsLibrary.Post Request' is deprecated. Please use `POST On Session` instead.</msg>
+<msg time="2026-02-26T18:31:00.818159" level="WARN">Retrying (RetryAdapter(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /create_incident</msg>
+<msg time="2026-02-26T18:31:03.036281" level="WARN">Retrying (RetryAdapter(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /create_incident</msg>
+<var>${resp}</var>
+<arg>dispatcher</arg>
+<arg>/create_incident</arg>
+<arg>json=${payload}</arg>
+<doc>*DEPRECATED* Please use `POST On Session` instead.</doc>
+<status status="FAIL" start="2026-02-26T18:30:58.766029" elapsed="6.546890">Execution terminated by signal</status>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<arg>${resp.status_code}</arg>
+<arg>200</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="NOT RUN" start="2026-02-26T18:31:05.312919" elapsed="0.000000"/>
+</kw>
+<kw name="To Json">
+<var>${body}</var>
+<arg>${resp.content}</arg>
+<status status="NOT RUN" start="2026-02-26T18:31:05.312919" elapsed="0.000000"/>
+</kw>
+<kw name="Dictionary Should Contain Key" owner="Collections">
+<arg>${body}</arg>
+<arg>assigned</arg>
+<doc>Fails if ``key`` is not found from ``dictionary``.</doc>
+<status status="NOT RUN" start="2026-02-26T18:31:05.312919" elapsed="0.000000"/>
+</kw>
+<tag>ui</tag>
+<status status="FAIL" start="2026-02-26T18:30:58.766029" elapsed="6.546890">Execution terminated by signal</status>
+</test>
+<status status="FAIL" start="2026-02-26T18:30:50.056000" elapsed="15.256919"/>
+</suite>
+<status status="FAIL" start="2026-02-26T18:30:32.014035" elapsed="33.298884"/>
+</suite>
+<status status="FAIL" start="2026-02-26T18:30:31.980614" elapsed="33.332305"/>
+</suite>
+<statistics>
+<total>
+<stat pass="0" fail="6" skip="0">All Tests</stat>
+</total>
+<tag>
+<stat pass="0" fail="2" skip="0">api</stat>
+<stat pass="0" fail="2" skip="0">ui</stat>
+<stat pass="0" fail="1" skip="0">ui_playwright</stat>
+<stat pass="0" fail="1" skip="0">visual</stat>
+</tag>
+<suite>
+<stat name="Tests" id="s1" pass="0" fail="6" skip="0">Tests</stat>
+<stat name="Robot" id="s1-s1" pass="0" fail="6" skip="0">Tests.Robot</stat>
+<stat name="Api Tests" id="s1-s1-s1" pass="0" fail="2" skip="0">Tests.Robot.Api Tests</stat>
+<stat name="Run Visual" id="s1-s1-s2" pass="0" fail="1" skip="0">Tests.Robot.Run Visual</stat>
+<stat name="Ui Playwright" id="s1-s1-s3" pass="0" fail="1" skip="0">Tests.Robot.Ui Playwright</stat>
+<stat name="Ui Tests" id="s1-s1-s4" pass="0" fail="2" skip="0">Tests.Robot.Ui Tests</stat>
+</suite>
+</statistics>
+<errors>
+<msg time="2026-02-26T18:30:31.964879" level="WARN">Error in file 'C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\tests\robot\api_tests.robot' on line 34: The '[Return]' setting is deprecated. Use the 'RETURN' statement instead.</msg>
+<msg time="2026-02-26T18:30:31.980614" level="WARN">Error in file 'C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\tests\robot\ui_tests.robot' on line 31: The '[Return]' setting is deprecated. Use the 'RETURN' statement instead.</msg>
+<msg time="2026-02-26T18:30:32.115234" level="WARN">Keyword 'RequestsLibrary.Post Request' is deprecated. Please use `POST On Session` instead.</msg>
+<msg time="2026-02-26T18:30:34.160045" level="WARN">Retrying (RetryAdapter(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /create_incident</msg>
+<msg time="2026-02-26T18:30:36.386505" level="WARN">Retrying (RetryAdapter(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /create_incident</msg>
+<msg time="2026-02-26T18:30:38.810193" level="WARN">Retrying (RetryAdapter(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /create_incident</msg>
+<msg time="2026-02-26T18:30:40.847276" level="WARN">Keyword 'RequestsLibrary.Get Request' is deprecated. Please use `GET On Session` instead.</msg>
+<msg time="2026-02-26T18:30:42.889563" level="WARN">Retrying (RetryAdapter(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /graph</msg>
+<msg time="2026-02-26T18:30:45.139336" level="WARN">Retrying (RetryAdapter(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /graph</msg>
+<msg time="2026-02-26T18:30:47.584236" level="WARN">Retrying (RetryAdapter(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /graph</msg>
+<msg time="2026-02-26T18:30:49.628228" level="WARN">Keyword 'RequestsLibrary.Get Request' is deprecated. Please use `GET On Session` instead.</msg>
+<msg time="2026-02-26T18:30:50.033708" level="ERROR">Calling method '_end_test' of listener 'Browser' failed: 
+#############################################################
+#                                                           #
+#  RF-Browser dependencies not found in installation path!  #
+#           Run `rfbrowser init` to install.                #
+#                                                           #
+#############################################################
+Installation path: C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\.venv\Lib\site-packages\Browser\wrapper</msg>
+<msg time="2026-02-26T18:30:50.056000" level="ERROR">Calling method '_end_suite' of listener 'Browser' failed: 
+#############################################################
+#                                                           #
+#  RF-Browser dependencies not found in installation path!  #
+#           Run `rfbrowser init` to install.                #
+#                                                           #
+#############################################################
+Installation path: C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\.venv\Lib\site-packages\Browser\wrapper</msg>
+<msg time="2026-02-26T18:30:50.061391" level="WARN">Keyword 'RequestsLibrary.Get Request' is deprecated. Please use `GET On Session` instead.</msg>
+<msg time="2026-02-26T18:30:52.089224" level="WARN">Retrying (RetryAdapter(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /</msg>
+<msg time="2026-02-26T18:30:54.296178" level="WARN">Retrying (RetryAdapter(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /</msg>
+<msg time="2026-02-26T18:30:56.725095" level="WARN">Retrying (RetryAdapter(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /</msg>
+<msg time="2026-02-26T18:30:58.766029" level="WARN">Keyword 'RequestsLibrary.Post Request' is deprecated. Please use `POST On Session` instead.</msg>
+<msg time="2026-02-26T18:31:00.818159" level="WARN">Retrying (RetryAdapter(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /create_incident</msg>
+<msg time="2026-02-26T18:31:03.036281" level="WARN">Retrying (RetryAdapter(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /create_incident</msg>
+</errors>
+</robot>

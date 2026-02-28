@@ -1,0 +1,30 @@
+{"level":30,"time":"2026-02-26T11:16:44.037Z","pid":9524,"hostname":"Max","msg":"Listening on 127.0.0.1:55030"}
+{"level":30,"time":"2026-02-26T11:16:44.384Z","pid":9524,"hostname":"Max","msg":"Start of node method newBrowser"}
+{"level":30,"time":"2026-02-26T11:16:44.557Z","pid":9524,"hostname":"Max","msg":"Adding browser to stack: chromium, version: 145.0.7632.6"}
+{"level":30,"time":"2026-02-26T11:16:44.557Z","pid":9524,"hostname":"Max","msg":"Adding 0 contexts to browser"}
+{"level":30,"time":"2026-02-26T11:16:44.558Z","pid":9524,"hostname":"Max","msg":"End of node method newBrowser"}
+{"level":30,"time":"2026-02-26T11:16:44.567Z","pid":9524,"hostname":"Max","msg":"Start of node method newPage"}
+{"level":30,"time":"2026-02-26T11:16:44.567Z","pid":9524,"hostname":"Max","msg":"currentBrowser: {\"name\":\"chromium\",\"browser\":{\"_type\":\"Browser\",\"_guid\":\"browser@a57151df875e08e89651fd4fd88a6feb\"},\"headless\":false,\"_contextStack\":[],\"id\":\"browser=f4ec6d74-0648-4f4b-aef8-9f41db75c3b0\"}"}
+{"level":30,"time":"2026-02-26T11:16:44.583Z","pid":9524,"hostname":"Max","msg":"Setting default timeout for context context=124df032-f3be-4c97-80a1-cbc203aeffd0 to 10000"}
+{"level":30,"time":"2026-02-26T11:16:44.584Z","pid":9524,"hostname":"Max","msg":"Changed active context: context=124df032-f3be-4c97-80a1-cbc203aeffd0"}
+{"level":30,"time":"2026-02-26T11:16:44.692Z","pid":9524,"hostname":"Max","msg":"Video path: undefined"}
+{"level":30,"time":"2026-02-26T11:16:44.693Z","pid":9524,"hostname":"Max","msg":"Changed active page"}
+{"level":30,"time":"2026-02-26T11:16:44.738Z","pid":9524,"hostname":"Max","msg":"End of node method newPage"}
+{"level":30,"time":"2026-02-26T11:16:45.750Z","pid":9524,"hostname":"Max","msg":"Start of node method getBrowserCatalog"}
+{"level":30,"time":"2026-02-26T11:16:45.756Z","pid":9524,"hostname":"Max","msg":"End of node method getBrowserCatalog"}
+{"level":30,"time":"2026-02-26T11:16:45.759Z","pid":9524,"hostname":"Max","msg":"Start of node method getBrowserCatalog"}
+{"level":30,"time":"2026-02-26T11:16:45.760Z","pid":9524,"hostname":"Max","msg":"End of node method getBrowserCatalog"}
+{"level":30,"time":"2026-02-26T11:16:45.762Z","pid":9524,"hostname":"Max","msg":"Start of node method getBrowserCatalog"}
+{"level":30,"time":"2026-02-26T11:16:45.763Z","pid":9524,"hostname":"Max","msg":"End of node method getBrowserCatalog"}
+{"level":30,"time":"2026-02-26T11:16:45.765Z","pid":9524,"hostname":"Max","msg":"Start of node method getBrowserCatalog"}
+{"level":30,"time":"2026-02-26T11:16:45.767Z","pid":9524,"hostname":"Max","msg":"End of node method getBrowserCatalog"}
+{"level":30,"time":"2026-02-26T11:16:45.769Z","pid":9524,"hostname":"Max","msg":"Changed active context: context=124df032-f3be-4c97-80a1-cbc203aeffd0"}
+{"level":30,"time":"2026-02-26T11:16:45.769Z","pid":9524,"hostname":"Max","msg":"Changing current active page: page=b111bbc7-b059-4ddd-b37f-0dbe804fbcad"}
+{"level":30,"time":"2026-02-26T11:16:45.770Z","pid":9524,"hostname":"Max","msg":"Changed active page"}
+{"level":30,"time":"2026-02-26T11:16:45.773Z","pid":9524,"hostname":"Max","msg":"Start of node method closeContext"}
+{"level":30,"time":"2026-02-26T11:16:45.788Z","pid":9524,"hostname":"Max","msg":"Removed page=d476a98a-973f-4268-8507-a6014aebaade from context=124df032-f3be-4c97-80a1-cbc203aeffd0 page stack"}
+{"level":30,"time":"2026-02-26T11:16:45.791Z","pid":9524,"hostname":"Max","msg":"End of node method closeContext"}
+{"level":30,"time":"2026-02-26T11:16:45.797Z","pid":9524,"hostname":"Max","msg":"Start of node method getBrowserCatalog"}
+{"level":30,"time":"2026-02-26T11:16:45.797Z","pid":9524,"hostname":"Max","msg":"End of node method getBrowserCatalog"}
+{"level":30,"time":"2026-02-26T11:16:45.869Z","pid":9524,"hostname":"Max","msg":"Start of node method closeAllBrowsers"}
+{"level":30,"time":"2026-02-26T11:16:45.983Z","pid":9524,"hostname":"Max","msg":"End of node method closeAllBrowsers"}

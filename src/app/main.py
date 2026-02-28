@@ -173,36 +173,83 @@ def maybe_escalate_incident(incident: IncidentState, current_time: int):
 
 def reevaluate_system():
 
-    # Only waiting incidents should be considered
-    waiting_incidents = [
-        i for i in incidents.values()
-        if i.status == "waiting"
-    ]
+    while True:
 
-    for incident in waiting_incidents:
+        result = list(engine.prolog.query(
+            "best_global_assignment(I,S,U,Score)"
+        ))
 
-        for u in units:
-            eta = remaining_time_to_node(u, incident.location, G)
-            engine.assert_travel_time(u.id, incident.id, round(eta, 2))
+        if not result:
+            break
 
-        assignments, explanation = engine.dispatch(incident.id)
+        incident_id = str(result[0]["I"])
+        unit_id = str(result[0]["U"])
 
-        for service, unit_id in assignments:
+        incident = incidents.get(incident_id)
+        unit = next(u for u in units if u.id == unit_id)
+
+        if not incident:
+            break
+
+        # ----------------------------------------
+        # CASE 1: UNIT IS AVAILABLE → NORMAL ASSIGN
+        # ----------------------------------------
+        if unit.status == "idle":
+
             assign_unit_to_incident(unit_id, incident)
 
-            selected_unit = next(u for u in units if u.id == unit_id)
+        # ----------------------------------------
+        # CASE 2: UNIT IS MOVING → CHECK REASSIGNMENT
+        # ----------------------------------------
+        elif unit.status == "moving":
 
-            current_pos = compute_position(selected_unit, G)
-            start_node = snap_to_nearest_node(current_pos, G)
+            # Find old incident
+            old_incident = None
+            for i in incidents.values():
+                if i.assigned_unit == unit_id and i.status in ("assigned", "waiting"):
+                    old_incident = i
+                    break
 
-            new_path = nx.shortest_path(
-                G, start_node, incident.location, weight="weight"
-            )
+            if not old_incident:
+                break
 
-            selected_unit.path = new_path
-            selected_unit.edge_index = 0
-            selected_unit.progress = 0.0
-            selected_unit.status = "moving"
+            # Ask Prolog if reassignment is better
+            reassess = list(engine.prolog.query(
+                f"better_reassignment({unit_id}, {old_incident.id}, {incident_id})"
+            ))
+
+            if reassess:
+
+                print(f"[REASSIGN] {unit_id} from {old_incident.id} → {incident_id}")
+
+                # Cancel old assignment
+                old_incident.assigned_unit = None
+                old_incident.status = "waiting"
+
+                # Assign new one
+                assign_unit_to_incident(unit_id, incident)
+
+            else:
+                break
+
+        else:
+            break
+
+        # ----------------------------------------
+        # Update movement path
+        # ----------------------------------------
+        current_pos = compute_position(unit, G)
+        start_node = snap_to_nearest_node(current_pos, G)
+
+        new_path = nx.shortest_path(
+            G, start_node, incident.location, weight="weight"
+        )
+
+        unit.path = new_path
+        unit.edge_index = 0
+        unit.progress = 0.0
+        unit.status = "moving"
+
 
 
 # -----------------------------
@@ -303,26 +350,11 @@ def create_incident(data: dict = Body(...)):
         eta = remaining_time_to_node(u, node, G)
         engine.assert_travel_time(u.id, incident_id, round(eta, 2))
 
-    assignments, explanation = engine.dispatch(incident_id)
-
-    for service, unit_id in assignments:
-        assign_unit_to_incident(unit_id, incident)
-
-        selected_unit = next(u for u in units if u.id == unit_id)
-
-        current_pos = compute_position(selected_unit, G)
-        start_node = snap_to_nearest_node(current_pos, G)
-
-        new_path = nx.shortest_path(G, start_node, node, weight="weight")
-
-        selected_unit.path = new_path
-        selected_unit.edge_index = 0
-        selected_unit.progress = 0.0
-        selected_unit.status = "moving"
+    # Trigger global dispatch instead of per-incident dispatch
+    reevaluate_system()
 
     return {
-        "assigned": selected,
-        "explanation": explanation
+        "message": "Incident registered. System reevaluated."
     }
 
 

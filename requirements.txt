@@ -4,3 +4,7 @@ pytest
 httpx
 pytest-cov
 networkx
+robotframework
+robotframework-requests
+robotframework-browser
+playwright

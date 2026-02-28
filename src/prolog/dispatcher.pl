@@ -50,73 +50,139 @@ effective_response_time(Unit, Incident, TotalTime) :-
     TotalTime is Travel + Remaining.
 
 % ----------------------------------------
-% CANDIDATE UNIT SELECTION (NO BLIND REASSIGNMENT)
+% WEIGHTED SCORE LOGIC
 % ----------------------------------------
 
-% Only AVAILABLE units are candidates.
-% Assigned units are NOT automatically considered.
-% Reassignment will be implemented later explicitly.
+% Adjustable weights
+weight_urgency(15).
+weight_time(1).
 
-candidate_unit(IncidentId, Service, Unit, Time) :-
+weighted_score(IncidentId, Unit, Score) :-
+    incident(IncidentId, _, _, _, _, Urg),
+    urgency_rank(Urg, Rank),
+    effective_response_time(Unit, IncidentId, Time),
+    weight_urgency(Wu),
+    weight_time(Wt),
+    Score is Wu * Rank - Wt * Time.
+    
+
+% ----------------------------------------
+% GLOBAL WEIGHTED SELECTION
+% ----------------------------------------
+
+select_best_global_assignment(IncidentId, Service, Unit, Score) :-
+    incident(IncidentId, _, _, _, _, _),
+    required_service_for_incident(IncidentId, Service),
+    candidate_unit(IncidentId, Service, Unit),
+    weighted_score(IncidentId, Unit, Score).
+
+best_global_assignment(IncidentId, Service, Unit, Score) :-
+    findall(Score-I-S-U,
+        select_best_global_assignment(I, S, U, Score),
+        All),
+    All \= [],
+    sort(All, Sorted),
+    reverse(Sorted, Desc),
+    Desc = [Score-IncidentId-Service-Unit | _].
+
+% ----------------------------------------
+% CONTROLLED REASSIGNMENT LOGIC
+% ----------------------------------------
+
+better_reassignment(Unit, OldIncident, NewIncident) :-
+
+    % Unit must already be assigned
+    assigned(Unit, OldIncident),
+
+    % Both incidents must exist
+    incident(OldIncident, _, _, _, _, OldUrg),
+    incident(NewIncident, _, _, _, _, NewUrg),
+
+    % New urgency must be strictly higher
+    urgency_rank(NewUrg, Rnew),
+    urgency_rank(OldUrg, Rold),
+    Rnew > Rold,
+
+    % Compare weighted scores
+    weighted_score(NewIncident, Unit, NewScore),
+    weighted_score(OldIncident, Unit, OldScore),
+
+    NewScore > OldScore.
+
+% ----------------------------------------
+% CANDIDATE UNIT SELECTION
+% ----------------------------------------
+
+candidate_unit(IncidentId, Service, Unit) :-
     incident(IncidentId, Type, _, _, _, _),
     required_service(Type, Service),
-    unit(Unit, Service, _, available, _),
-    effective_response_time(Unit, IncidentId, Time).
+    unit(Unit, Service, _, Status, _),
+    ( Status = available ; Status = busy ).
 
 % ----------------------------------------
-% SELECT BEST UNIT FOR A GIVEN SERVICE
+% SELECT BEST UNIT (MAXIMIZE SCORE)
 % ----------------------------------------
 
 select_best_unit_for_service(IncidentId, Service, BestUnit) :-
-    findall(Time-Unit,
-        candidate_unit(IncidentId, Service, Unit, Time),
+    findall(Score-Unit,
+        (
+            candidate_unit(IncidentId, Service, Unit),
+            weighted_score(IncidentId, Unit, Score)
+        ),
         Pairs),
     Pairs \= [],
-    sort(Pairs, Sorted),
-    Sorted = [_-BestUnit | _].
+    sort(Pairs, Sorted),        % ascending
+    reverse(Sorted, Descending),% descending (max first)
+    Descending = [_-BestUnit | _].
 
 % ----------------------------------------
 % MULTI-SERVICE DISPATCH
 % ----------------------------------------
 
-% For each required service,
-% select the best available unit.
-% Returns a list like:
-%   [medical-m1, police-p2]
-
 dispatch(IncidentId, Assignments, Explanation) :-
+    findall(Service,
+        required_service_for_incident(IncidentId, Service),
+        Services),
+
     findall(Service-Unit,
         (
-            required_service_for_incident(IncidentId, Service),
+            member(Service, Services),
             select_best_unit_for_service(IncidentId, Service, Unit)
         ),
         Assignments),
+
     Assignments \= [],
     build_explanation(IncidentId, Assignments, Explanation).
 
-% Helper: get required services for an incident
 required_service_for_incident(IncidentId, Service) :-
     incident(IncidentId, Type, _, _, _, _),
     required_service(Type, Service).
 
 % ----------------------------------------
-% EXPLANATION GENERATION
+% EXPLANATION
 % ----------------------------------------
 
 build_explanation(IncidentId, Assignments, Explanation) :-
     incident(IncidentId, Type, _, _, _, Urg),
-    format_assignments(Assignments, AssignmentText),
+    format_assignments(IncidentId, Assignments, AssignmentText),
     format(atom(Explanation),
         'Incident ~w (type=~w, urgency=~w). Dispatched: ~w.',
         [IncidentId, Type, Urg, AssignmentText]).
 
-format_assignments([], '').
-format_assignments([Service-Unit], Text) :-
-    format(atom(Text), '~w unit ~w', [Service, Unit]).
-format_assignments([Service-Unit | Rest], Text) :-
-    format_assignments(Rest, RestText),
-    format(atom(Text), '~w unit ~w, ~w',
-        [Service, Unit, RestText]).
+format_assignments(_, [], '').
+
+format_assignments(IncidentId, [Service-Unit], Text) :-
+    weighted_score(IncidentId, Unit, Score),
+    format(atom(Text),
+        '~w unit ~w (score=~2f)',
+        [Service, Unit, Score]).
+
+format_assignments(IncidentId, [Service-Unit | Rest], Text) :-
+    weighted_score(IncidentId, Unit, Score),
+    format_assignments(IncidentId, Rest, RestText),
+    format(atom(Text),
+        '~w unit ~w (score=~2f), ~w',
+        [Service, Unit, Score, RestText]).
 
 % ----------------------------------------
 % URGENCY ESCALATION

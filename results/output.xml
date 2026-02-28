@@ -1,0 +1,573 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<robot generator="Robot 7.4.1 (Python 3.13.9 on win32)" generated="2026-02-26T18:16:43.002485" rpa="false" schemaversion="5">
+<suite id="s1" name="Robot" source="C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\tests\robot">
+<suite id="s1-s1" name="Api Tests" source="C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\tests\robot\api_tests.robot">
+<test id="s1-s1-t1" name="Create Incident And Verify Assignment" line="9">
+<kw name="Create Session" owner="RequestsLibrary">
+<msg time="2026-02-26T18:16:43.101384" level="INFO">Creating Session using : alias=dispatcher, url=http://127.0.0.1:8000, headers={},                     cookies={}, auth=None, timeout=None, proxies=None, verify=False,                     debug=0 </msg>
+<arg>dispatcher</arg>
+<arg>${BASE}</arg>
+<doc>Create Session: create a HTTP session to a server</doc>
+<status status="PASS" start="2026-02-26T18:16:43.101244" elapsed="0.000281"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-02-26T18:16:43.102030" level="INFO">${payload} = {'node': 'n0_0', 'type': 'fire', 'severity': 3}</msg>
+<var>${payload}</var>
+<arg>{'node': 'n0_0', 'type': 'fire', 'severity': 3}</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-02-26T18:16:43.101749" elapsed="0.000303"/>
+</kw>
+<kw name="Post Request" owner="RequestsLibrary">
+<msg time="2026-02-26T18:16:43.102254" level="WARN">Keyword 'RequestsLibrary.Post Request' is deprecated. Please use `POST On Session` instead.</msg>
+<msg time="2026-02-26T18:16:43.111754" level="INFO">POST Request : url=http://127.0.0.1:8000/create_incident 
+ path_url=/create_incident 
+ headers={'User-Agent': 'python-requests/2.32.5', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '47', 'Content-Type': 'application/json'} 
+ body=b'{"node": "n0_0", "type": "fire", "severity": 3}' 
+ </msg>
+<msg time="2026-02-26T18:16:43.111834" level="INFO">POST Response : url=http://127.0.0.1:8000/create_incident 
+ status=200, reason=OK 
+ headers={'date': 'Thu, 26 Feb 2026 11:16:42 GMT', 'server': 'uvicorn', 'content-length': '50', 'content-type': 'application/json'} 
+ body={"assigned":[],"explanation":"No unit available."} 
+ </msg>
+<msg time="2026-02-26T18:16:43.111932" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>dispatcher</arg>
+<arg>/create_incident</arg>
+<arg>json=${payload}</arg>
+<doc>*DEPRECATED* Please use `POST On Session` instead.</doc>
+<status status="PASS" start="2026-02-26T18:16:43.102233" elapsed="0.009715"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-02-26T18:16:43.112618" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${resp.status_code}</arg>
+<arg>200</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-02-26T18:16:43.112184" elapsed="0.000473"/>
+</kw>
+<kw name="To Json">
+<kw name="Convert To String" owner="BuiltIn">
+<msg time="2026-02-26T18:16:43.113548" level="INFO">${decoded} = {"assigned":[],"explanation":"No unit available."}</msg>
+<var>${decoded}</var>
+<arg>${content}</arg>
+<doc>Converts the given item to a Unicode string.</doc>
+<status status="PASS" start="2026-02-26T18:16:43.113342" elapsed="0.000223"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-02-26T18:16:43.113842" level="INFO">${json} = {'assigned': [], 'explanation': 'No unit available.'}</msg>
+<var>${json}</var>
+<arg>__import__('json').loads('''${decoded}''')</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-02-26T18:16:43.113627" elapsed="0.000231"/>
+</kw>
+<return>
+<value>${json}</value>
+<status status="PASS" start="2026-02-26T18:16:43.113892" elapsed="0.000087"/>
+</return>
+<msg time="2026-02-26T18:16:43.114095" level="INFO">${body} = {'assigned': [], 'explanation': 'No unit available.'}</msg>
+<var>${body}</var>
+<arg>${resp.content}</arg>
+<status status="PASS" start="2026-02-26T18:16:43.112902" elapsed="0.001210"/>
+</kw>
+<kw name="Dictionary Should Contain Key" owner="Collections">
+<arg>${body}</arg>
+<arg>assigned</arg>
+<doc>Fails if ``key`` is not found from ``dictionary``.</doc>
+<status status="PASS" start="2026-02-26T18:16:43.114239" elapsed="0.000102"/>
+</kw>
+<kw name="Dictionary Should Contain Key" owner="Collections">
+<arg>${body}</arg>
+<arg>explanation</arg>
+<doc>Fails if ``key`` is not found from ``dictionary``.</doc>
+<status status="PASS" start="2026-02-26T18:16:43.114589" elapsed="0.000107"/>
+</kw>
+<tag>api</tag>
+<status status="PASS" start="2026-02-26T18:16:43.100613" elapsed="0.014275"/>
+</test>
+<test id="s1-s1-t2" name="Get Graph And State" line="19">
+<kw name="Create Session" owner="RequestsLibrary">
+<msg time="2026-02-26T18:16:43.115721" level="INFO">Creating Session using : alias=dispatcher, url=http://127.0.0.1:8000, headers={},                     cookies={}, auth=None, timeout=None, proxies=None, verify=False,                     debug=0 </msg>
+<arg>dispatcher</arg>
+<arg>${BASE}</arg>
+<doc>Create Session: create a HTTP session to a server</doc>
+<status status="PASS" start="2026-02-26T18:16:43.115637" elapsed="0.000205"/>
+</kw>
+<kw name="Get Request" owner="RequestsLibrary">
+<msg time="2026-02-26T18:16:43.116021" level="WARN">Keyword 'RequestsLibrary.Get Request' is deprecated. Please use `GET On Session` instead.</msg>
+<msg time="2026-02-26T18:16:43.120154" level="INFO">GET Request : url=http://127.0.0.1:8000/graph 
+ path_url=/graph 
+ headers={'User-Agent': 'python-requests/2.32.5', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive'} 
+ body=None 
+ </msg>
+<msg time="2026-02-26T18:16:43.120228" level="INFO">GET Response : url=http://127.0.0.1:8000/graph 
+ status=200, reason=OK 
+ headers={'date': 'Thu, 26 Feb 2026 11:16:42 GMT', 'server': 'uvicorn', 'content-length': '1871', 'content-type': 'application/json'} 
+ body={"nodes":[{"id":"n0_0","x":0,"y":0},{"id":"n0_1","x":0,"y":100},{"id":"n0_2","x":0,"y":200},{"id":"n0_3","x":0,"y":300},{"id":"n0_4","x":0,"y":400},{"id":"n1_0","x":100,"y":0},{"id":"n1_1","x":100,"y":100},{"id":"n1_2","x":100,"y":200},{"id":"n1_3","x":100,"y":300},{"id":"n1_4","x":100,"y":400},{"id":"n2_0","x":200,"y":0},{"id":"n2_1","x":200,"y":100},{"id":"n2_2","x":200,"y":200},{"id":"n2_3","x":200,"y":300},{"id":"n2_4","x":200,"y":400},{"id":"n3_0","x":300,"y":0},{"id":"n3_1","x":300,"y":100},{"id":"n3_2","x":300,"y":200},{"id":"n3_3","x":300,"y":300},{"id":"n3_4","x":300,"y":400},{"id":"n4_0","x":400,"y":0},{"id":"n4_1","x":400,"y":100},{"id":"n4_2","x":400,"y":200},{"id":"n4_3","x":400,"y":300},{"id":"n4_4","x":400,"y":400}],"edges":[{"from":"n0_0","to":"n1_0"},{"from":"n0_0","to":"n0_1"},{"from":"n0_1","to":"n1_1"},{"from":"n0_1","to":"n0_2"},{"from":"n0_2","to":"n1_2"},{"from":"n0_2","to":"n0_3"},{"from":"n0_3","to":"n1_3"},{"from":"n0_3","to":"n0_4"},{"from":"n0_4","to":"n1_4"},{"from":"n1_0","to":"n2_0"},{"from":"n1_0","to":"n1_1"},{"from":"n1_1","to":"n2_1"},{"from":"n1_1","to":"n1_2"},{"from":"n1_2","to":"n2_2"},{"from":"n1_2","to":"n1_3"},{"from":"n1_3","to":"n2_3"},{"from":"n1_3","to":"n1_4"},{"from":"n1_4","to":"n2_4"},{"from":"n2_0","to":"n3_0"},{"from":"n2_0","to":"n2_1"},{"from":"n2_1","to":"n3_1"},{"from":"n2_1","to":"n2_2"},{"from":"n2_2","to":"n3_2"},{"from":"n2_2","to":"n2_3"},{"from":"n2_3","to":"n3_3"},{"from":"n2_3","to":"n2_4"},{"from":"n2_4","to":"n3_4"},{"from":"n3_0","to":"n4_0"},{"from":"n3_0","to":"n3_1"},{"from":"n3_1","to":"n4_1"},{"from":"n3_1","to":"n3_2"},{"from":"n3_2","to":"n4_2"},{"from":"n3_2","to":"n3_3"},{"from":"n3_3","to":"n4_3"},{"from":"n3_3","to":"n3_4"},{"from":"n3_4","to":"n4_4"},{"from":"n4_0","to":"n4_1"},{"from":"n4_1","to":"n4_2"},{"from":"n4_2","to":"n4_3"},{"from":"n4_3","to":"n4_4"}]} 
+ </msg>
+<msg time="2026-02-26T18:16:43.120312" level="INFO">${g} = &lt;Response [200]&gt;</msg>
+<var>${g}</var>
+<arg>dispatcher</arg>
+<arg>/graph</arg>
+<doc>*DEPRECATED* Please use `GET On Session` instead.</doc>
+<status status="PASS" start="2026-02-26T18:16:43.116001" elapsed="0.004326"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-02-26T18:16:43.121144" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${g.status_code}</arg>
+<arg>200</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-02-26T18:16:43.120684" elapsed="0.000502"/>
+</kw>
+<kw name="Get Request" owner="RequestsLibrary">
+<msg time="2026-02-26T18:16:43.121370" level="WARN">Keyword 'RequestsLibrary.Get Request' is deprecated. Please use `GET On Session` instead.</msg>
+<msg time="2026-02-26T18:16:43.123843" level="INFO">GET Request : url=http://127.0.0.1:8000/state 
+ path_url=/state 
+ headers={'User-Agent': 'python-requests/2.32.5', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive'} 
+ body=None 
+ </msg>
+<msg time="2026-02-26T18:16:43.123890" level="INFO">GET Response : url=http://127.0.0.1:8000/state 
+ status=200, reason=OK 
+ headers={'date': 'Thu, 26 Feb 2026 11:16:42 GMT', 'server': 'uvicorn', 'content-length': '283', 'content-type': 'application/json'} 
+ body={"units":[{"id":"f1","x":0,"y":0,"service":"fire"},{"id":"f2","x":400,"y":400,"service":"fire"},{"id":"m1","x":0,"y":400,"service":"medical"},{"id":"m2","x":400,"y":0,"service":"medical"},{"id":"p1","x":200,"y":200,"service":"police"},{"id":"p2","x":100,"y":300,"service":"police"}]} 
+ </msg>
+<msg time="2026-02-26T18:16:43.123960" level="INFO">${s} = &lt;Response [200]&gt;</msg>
+<var>${s}</var>
+<arg>dispatcher</arg>
+<arg>/state</arg>
+<doc>*DEPRECATED* Please use `GET On Session` instead.</doc>
+<status status="PASS" start="2026-02-26T18:16:43.121356" elapsed="0.002617"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-02-26T18:16:43.124553" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${s.status_code}</arg>
+<arg>200</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-02-26T18:16:43.124177" elapsed="0.000408"/>
+</kw>
+<kw name="To Json">
+<kw name="Convert To String" owner="BuiltIn">
+<msg time="2026-02-26T18:16:43.125248" level="INFO">${decoded} = {"units":[{"id":"f1","x":0,"y":0,"service":"fire"},{"id":"f2","x":400,"y":400,"service":"fire"},{"id":"m1","x":0,"y":400,"service":"medical"},{"id":"m2","x":400,"y":0,"service":"medical"},{"id":"p1","...</msg>
+<var>${decoded}</var>
+<arg>${content}</arg>
+<doc>Converts the given item to a Unicode string.</doc>
+<status status="PASS" start="2026-02-26T18:16:43.125092" elapsed="0.000172"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-02-26T18:16:43.125537" level="INFO">${json} = {'units': [{'id': 'f1', 'x': 0, 'y': 0, 'service': 'fire'}, {'id': 'f2', 'x': 400, 'y': 400, 'service': 'fire'}, {'id': 'm1', 'x': 0, 'y': 400, 'service': 'medical'}, {'id': 'm2', 'x': 400, 'y': 0, 's...</msg>
+<var>${json}</var>
+<arg>__import__('json').loads('''${decoded}''')</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-02-26T18:16:43.125318" elapsed="0.000234"/>
+</kw>
+<return>
+<value>${json}</value>
+<status status="PASS" start="2026-02-26T18:16:43.125583" elapsed="0.000031"/>
+</return>
+<msg time="2026-02-26T18:16:43.125686" level="INFO">${json} = {'units': [{'id': 'f1', 'x': 0, 'y': 0, 'service': 'fire'}, {'id': 'f2', 'x': 400, 'y': 400, 'service': 'fire'}, {'id': 'm1', 'x': 0, 'y': 400, 'service': 'medical'}, {'id': 'm2', 'x': 400, 'y': 0, 's...</msg>
+<var>${json}</var>
+<arg>${s.content}</arg>
+<status status="PASS" start="2026-02-26T18:16:43.124791" elapsed="0.000908"/>
+</kw>
+<kw name="Dictionary Should Contain Key" owner="Collections">
+<arg>${json}</arg>
+<arg>units</arg>
+<doc>Fails if ``key`` is not found from ``dictionary``.</doc>
+<status status="PASS" start="2026-02-26T18:16:43.125913" elapsed="0.000109"/>
+</kw>
+<tag>api</tag>
+<status status="PASS" start="2026-02-26T18:16:43.115369" elapsed="0.010882"/>
+</test>
+<status status="PASS" start="2026-02-26T18:16:43.032836" elapsed="0.094179"/>
+</suite>
+<suite id="s1-s2" name="Run Visual" source="C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\tests\robot\run_visual.robot">
+<test id="s1-s2-t1" name="Visual Playwright Click (external)" line="9">
+<kw name="Run Process" owner="Process">
+<msg time="2026-02-26T18:16:43.133702" level="INFO">Starting process:
+"C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\tests\robot.....venvScriptspython.exe" "C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\tests\robotvisual_demo.py" 15</msg>
+<msg time="2026-02-26T18:16:43.134112" level="FAIL">FileNotFoundError: [WinError 2] The system cannot find the file specified</msg>
+<arg>${PY}</arg>
+<arg>C:\\Users\\Maxkh\\OneDrive\\Documents\\Code\\Team Project\\DispatcherAgent\\tests\\robot\visual_demo.py</arg>
+<arg>${DELAY}</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="FAIL" start="2026-02-26T18:16:43.133424" elapsed="0.001962">FileNotFoundError: [WinError 2] The system cannot find the file specified</status>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<arg>${rc}</arg>
+<arg>0</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="NOT RUN" start="2026-02-26T18:16:43.135584" elapsed="0.000017"/>
+</kw>
+<tag>visual</tag>
+<status status="FAIL" start="2026-02-26T18:16:43.133078" elapsed="0.002708">FileNotFoundError: [WinError 2] The system cannot find the file specified</status>
+</test>
+<status status="FAIL" start="2026-02-26T18:16:43.127621" elapsed="0.008671"/>
+</suite>
+<suite id="s1-s3" name="Ui Playwright" source="C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\tests\robot\ui_playwright.robot">
+<test id="s1-s3-t1" name="Open UI And Trigger Incident (visual)" line="10">
+<kw name="New Browser" owner="Browser">
+<msg time="2026-02-26T18:16:43.316009" level="INFO">{"browser": "chromium", "headless": false, "chromiumSandbox": false, "devtools": false, "handleSIGHUP": true, "handleSIGINT": true, "handleSIGTERM": true, "slowMo": 0.0, "timeout": 30000.0, "tracesDir": "C:\\Users\\Maxkh\\OneDrive\\Documents\\Code\\Team Project\\DispatcherAgent\\results\\browser\\traces\\temp\\f887d702-ae34-44e9-9f82-59bd571df9d0"}</msg>
+<msg time="2026-02-26T18:16:43.340927" level="INFO">Starting Browser process C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\.venv\Lib\site-packages\Browser\wrapper\index.js using at 127.0.0.1:55030</msg>
+<msg time="2026-02-26T18:16:44.560512" level="INFO">Successfully created browser with options: {"browser":"chromium","headless":false,"chromiumSandbox":false,"devtools":false,"handleSIGHUP":true,"handleSIGINT":true,"handleSIGTERM":true,"slowMo":0,"timeout":30000,"tracesDir":"C:\\Users\\Maxkh\\OneDrive\\Documents\\Code\\Team Project\\DispatcherAgent\\results\\browser\\traces\\temp\\f887d702-ae34-44e9-9f82-59bd571df9d0"}</msg>
+<arg>headless=False</arg>
+<tag>BrowserControl</tag>
+<tag>Setter</tag>
+<doc>Create a new playwright Browser with specified options.</doc>
+<status status="PASS" start="2026-02-26T18:16:43.315262" elapsed="1.245492"/>
+</kw>
+<kw name="New Page" owner="Browser">
+<msg time="2026-02-26T18:16:44.741108" level="INFO">Successfully initialized new page object and opened url: http://127.0.0.1:8000/</msg>
+<msg time="2026-02-26T18:16:44.741216" level="INFO">No context was open. New context was automatically opened when this page is created.</msg>
+<arg>${BASE}/</arg>
+<tag>BrowserControl</tag>
+<tag>Setter</tag>
+<doc>Open a new Page.</doc>
+<status status="PASS" start="2026-02-26T18:16:44.561824" elapsed="0.179577"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<msg time="2026-02-26T18:16:45.742782" level="INFO">Slept 1 second.</msg>
+<arg>1s</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="PASS" start="2026-02-26T18:16:44.741790" elapsed="1.001133"/>
+</kw>
+<kw name="Execute JavaScript">
+<msg time="2026-02-26T18:16:45.744529" level="FAIL">No keyword with name 'Execute JavaScript' found.</msg>
+<arg>window._prompts = ['fire','3']; window.prompt = function(){ return window._prompts.shift(); }</arg>
+<status status="FAIL" start="2026-02-26T18:16:45.744178" elapsed="0.000395">No keyword with name 'Execute JavaScript' found.</status>
+</kw>
+<kw name="Wait For Elements State" owner="Browser">
+<arg>css=svg circle.node</arg>
+<arg>visible</arg>
+<arg>timeout=5s</arg>
+<tag>PageContent</tag>
+<tag>Wait</tag>
+<doc>Waits for the element found by ``selector`` to satisfy state option.</doc>
+<status status="NOT RUN" start="2026-02-26T18:16:45.744792" elapsed="0.000191"/>
+</kw>
+<kw name="Execute JavaScript">
+<arg>document.querySelectorAll('svg circle.node')[0].dispatchEvent(new MouseEvent('click', {bubbles:true, cancelable:true}));</arg>
+<status status="NOT RUN" start="2026-02-26T18:16:45.745208" elapsed="0.000143"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<arg>0.5s</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="NOT RUN" start="2026-02-26T18:16:45.745577" elapsed="0.000113"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<arg>${VISUAL_DELAY}</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="NOT RUN" start="2026-02-26T18:16:45.746097" elapsed="0.000090"/>
+</kw>
+<kw name="Close Browser" owner="Browser">
+<tag>BrowserControl</tag>
+<tag>Setter</tag>
+<doc>Closes the current browser.</doc>
+<status status="NOT RUN" start="2026-02-26T18:16:45.746377" elapsed="0.000079"/>
+</kw>
+<msg time="2026-02-26T18:16:45.765640" level="INFO">Switching context to context=124df032-f3be-4c97-80a1-cbc203aeffd0 in CURRENT</msg>
+<msg time="2026-02-26T18:16:45.773659" level="INFO">Successfully changed active context: context=124df032-f3be-4c97-80a1-cbc203aeffd0</msg>
+<msg time="2026-02-26T18:16:45.793643" level="INFO">Successfully closed Context</msg>
+<tag>ui_playwright</tag>
+<status status="FAIL" start="2026-02-26T18:16:43.314679" elapsed="2.432045">No keyword with name 'Execute JavaScript' found.</status>
+</test>
+<status status="FAIL" start="2026-02-26T18:16:43.136848" elapsed="2.657651"/>
+</suite>
+<suite id="s1-s4" name="Ui Tests" source="C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\tests\robot\ui_tests.robot">
+<test id="s1-s4-t1" name="Root Page Contains Frontend" line="9">
+<kw name="Create Session" owner="RequestsLibrary">
+<msg time="2026-02-26T18:16:45.804546" level="INFO">Creating Session using : alias=dispatcher, url=http://127.0.0.1:8000, headers={},                     cookies={}, auth=None, timeout=None, proxies=None, verify=False,                     debug=0 </msg>
+<arg>dispatcher</arg>
+<arg>${BASE}</arg>
+<doc>Create Session: create a HTTP session to a server</doc>
+<status status="PASS" start="2026-02-26T18:16:45.804418" elapsed="0.000260"/>
+</kw>
+<kw name="Get Request" owner="RequestsLibrary">
+<msg time="2026-02-26T18:16:45.804965" level="WARN">Keyword 'RequestsLibrary.Get Request' is deprecated. Please use `GET On Session` instead.</msg>
+<msg time="2026-02-26T18:16:45.811684" level="INFO">GET Request : url=http://127.0.0.1:8000/ 
+ path_url=/ 
+ headers={'User-Agent': 'python-requests/2.32.5', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive'} 
+ body=None 
+ </msg>
+<msg time="2026-02-26T18:16:45.811867" level="INFO">GET Response : url=http://127.0.0.1:8000/ 
+ status=200, reason=OK 
+ headers={'date': 'Thu, 26 Feb 2026 11:16:45 GMT', 'server': 'uvicorn', 'content-type': 'text/html; charset=utf-8', 'accept-ranges': 'bytes', 'content-length': '3556', 'last-modified': 'Thu, 26 Feb 2026 10:16:48 GMT', 'etag': '"bd763f4bfce281d600bd9d7848fd4420"'} 
+ body=&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;Dispatcher Simulation&lt;/title&gt;
+    &lt;style&gt;
+        body { background: #111; color: white; text-align: center; font-family: Arial; }
+        .road { stroke: #888; stroke-width: 3; }
+        .node { fill: #ccc; }
+        .unit { stroke: white; stroke-width: 1; }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+
+&lt;h2&gt;Emergency Dispatcher Simulation&lt;/h2&gt;
+
+&lt;svg id="map" width="700" height="700"
+     viewBox="-50 -50 550 550"
+     style="background:#1e1e1e; border:1px solid #555;"&gt;
+&lt;/svg&gt;
+
+&lt;div id="info" style="margin-top:20px;"&gt;&lt;/div&gt;
+
+
+&lt;script&gt;
+let graphData = null;
+
+async function loadGraph() {
+    const graphRes = await fetch("/graph");
+    graphData = await graphRes.json();
+
+    const svg = document.getElementById("map");
+    svg.innerHTML = "";
+
+    // Draw roads
+    graphData.edges.forEach(e =&gt; {
+        const n1 = graphData.nodes.find(n =&gt; n.id === e.from);
+        const n2 = graphData.nodes.find(n =&gt; n.id === e.to);
+
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", n1.x);
+        line.setAttribute("y1", n1.y);
+        line.setAttribute("x2", n2.x);
+        line.setAttribute("y2", n2.y);
+        line.setAttribute("class", "road");
+        svg.appendChild(line);
+    });
+
+    // Draw nodes
+    graphData.nodes.forEach(n =&gt; {
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", n.x);
+        circle.setAttribute("cy", n.y);
+        circle.setAttribute("r", 8);
+        circle.setAttribute("class", "node");
+        circle.style.cursor = "pointer";
+
+        circle.addEventListener("click", () =&gt; {
+            createIncident(n.id);
+        });
+
+        svg.appendChild(circle);
+    });
+
+    createUnitCircles();
+}
+
+async function createUnitCircles() {
+    const res = await fetch("/state");
+    const data = await res.json();
+
+    const svg = document.getElementById("map");
+
+    data.units.forEach(u =&gt; {
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("id", u.id);
+        circle.setAttribute("r", 10);
+        circle.setAttribute("class", "unit");
+
+        if (u.service === "fire") circle.setAttribute("fill", "red");
+        if (u.service === "medical") circle.setAttribute("fill", "lime");
+        if (u.service === "police") circle.setAttribute("fill", "cyan");
+
+        svg.appendChild(circle);
+    });
+}
+
+async function update() {
+    const res = await fetch("/state");
+    const data = await res.json();
+
+    data.units.forEach(u =&gt; {
+        const el = document.getElementById(u.id);
+        if (el) {
+            el.setAttribute("cx", u.x);
+            el.setAttribute("cy", u.y);
+        }
+    });
+}
+
+async function createIncident(nodeId) {
+
+    const type = prompt("Type: fire / medical / accident");
+    const severity = parseInt(prompt("Severity (1-5):"));
+
+    if (!type || !severity) return;
+
+    const res = await fetch(`/create_incident`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            node: nodeId,
+            type: type,
+            severity: severity
+        })
+    });
+
+    const data = await res.json();
+
+    document.getElementById("info").innerText =
+        `Assigned: ${data.assigned}\n${data.explanation}`;
+}
+
+loadGraph();
+setInterval(update, 100);
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt; 
+ </msg>
+<msg time="2026-02-26T18:16:45.812078" level="INFO">${r} = &lt;Response [200]&gt;</msg>
+<var>${r}</var>
+<arg>dispatcher</arg>
+<arg>/</arg>
+<doc>*DEPRECATED* Please use `GET On Session` instead.</doc>
+<status status="PASS" start="2026-02-26T18:16:45.804931" elapsed="0.007174"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-02-26T18:16:45.813259" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${r.status_code}</arg>
+<arg>200</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-02-26T18:16:45.812478" elapsed="0.000866"/>
+</kw>
+<kw name="Convert To String" owner="BuiltIn">
+<msg time="2026-02-26T18:16:45.814299" level="INFO">${text} = &lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;Dispatcher Simulation&lt;/title&gt;
+    &lt;style&gt;
+        body { background: #111; color: white; text-align: center; font-family: Arial; }
+        .road { stroke...</msg>
+<var>${text}</var>
+<arg>${r.content}</arg>
+<doc>Converts the given item to a Unicode string.</doc>
+<status status="PASS" start="2026-02-26T18:16:45.813616" elapsed="0.000786"/>
+</kw>
+<kw name="Should Contain" owner="BuiltIn">
+<arg>${text}</arg>
+<arg>Emergency Dispatcher Simulation</arg>
+<doc>Fails if ``container`` does not contain ``item`` one or more times.</doc>
+<status status="PASS" start="2026-02-26T18:16:45.814631" elapsed="0.000571"/>
+</kw>
+<tag>ui</tag>
+<status status="PASS" start="2026-02-26T18:16:45.803945" elapsed="0.011481"/>
+</test>
+<test id="s1-s4-t2" name="Create Incident Via UI Endpoint" line="17">
+<kw name="Create Session" owner="RequestsLibrary">
+<msg time="2026-02-26T18:16:45.816590" level="INFO">Creating Session using : alias=dispatcher, url=http://127.0.0.1:8000, headers={},                     cookies={}, auth=None, timeout=None, proxies=None, verify=False,                     debug=0 </msg>
+<arg>dispatcher</arg>
+<arg>${BASE}</arg>
+<doc>Create Session: create a HTTP session to a server</doc>
+<status status="PASS" start="2026-02-26T18:16:45.816446" elapsed="0.000320"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-02-26T18:16:45.817666" level="INFO">${payload} = {'node': 'n0_0', 'type': 'medical', 'severity': 2}</msg>
+<var>${payload}</var>
+<arg>{'node': 'n0_0', 'type': 'medical', 'severity': 2}</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-02-26T18:16:45.817010" elapsed="0.000688"/>
+</kw>
+<kw name="Post Request" owner="RequestsLibrary">
+<msg time="2026-02-26T18:16:45.818074" level="WARN">Keyword 'RequestsLibrary.Post Request' is deprecated. Please use `POST On Session` instead.</msg>
+<msg time="2026-02-26T18:16:45.823019" level="INFO">POST Request : url=http://127.0.0.1:8000/create_incident 
+ path_url=/create_incident 
+ headers={'User-Agent': 'python-requests/2.32.5', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '50', 'Content-Type': 'application/json'} 
+ body=b'{"node": "n0_0", "type": "medical", "severity": 2}' 
+ </msg>
+<msg time="2026-02-26T18:16:45.823110" level="INFO">POST Response : url=http://127.0.0.1:8000/create_incident 
+ status=200, reason=OK 
+ headers={'date': 'Thu, 26 Feb 2026 11:16:45 GMT', 'server': 'uvicorn', 'content-length': '50', 'content-type': 'application/json'} 
+ body={"assigned":[],"explanation":"No unit available."} 
+ </msg>
+<msg time="2026-02-26T18:16:45.823253" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>dispatcher</arg>
+<arg>/create_incident</arg>
+<arg>json=${payload}</arg>
+<doc>*DEPRECATED* Please use `POST On Session` instead.</doc>
+<status status="PASS" start="2026-02-26T18:16:45.818045" elapsed="0.005241"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-02-26T18:16:45.824361" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${resp.status_code}</arg>
+<arg>200</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-02-26T18:16:45.823705" elapsed="0.000720"/>
+</kw>
+<kw name="To Json">
+<kw name="Convert To String" owner="BuiltIn">
+<msg time="2026-02-26T18:16:45.826034" level="INFO">${decoded} = {"assigned":[],"explanation":"No unit available."}</msg>
+<var>${decoded}</var>
+<arg>${content}</arg>
+<doc>Converts the given item to a Unicode string.</doc>
+<status status="PASS" start="2026-02-26T18:16:45.825660" elapsed="0.000402"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-02-26T18:16:45.826572" level="INFO">${json} = {'assigned': [], 'explanation': 'No unit available.'}</msg>
+<var>${json}</var>
+<arg>__import__('json').loads('''${decoded}''')</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-02-26T18:16:45.826193" elapsed="0.000404"/>
+</kw>
+<return>
+<value>${json}</value>
+<status status="PASS" start="2026-02-26T18:16:45.826651" elapsed="0.000047"/>
+</return>
+<msg time="2026-02-26T18:16:45.826814" level="INFO">${body} = {'assigned': [], 'explanation': 'No unit available.'}</msg>
+<var>${body}</var>
+<arg>${resp.content}</arg>
+<status status="PASS" start="2026-02-26T18:16:45.824907" elapsed="0.001928"/>
+</kw>
+<kw name="Dictionary Should Contain Key" owner="Collections">
+<arg>${body}</arg>
+<arg>assigned</arg>
+<doc>Fails if ``key`` is not found from ``dictionary``.</doc>
+<status status="PASS" start="2026-02-26T18:16:45.827152" elapsed="0.000169"/>
+</kw>
+<tag>ui</tag>
+<status status="PASS" start="2026-02-26T18:16:45.815986" elapsed="0.011569"/>
+</test>
+<status status="PASS" start="2026-02-26T18:16:45.799684" elapsed="0.028354"/>
+</suite>
+<status status="FAIL" start="2026-02-26T18:16:43.003737" elapsed="2.825125"/>
+</suite>
+<statistics>
+<total>
+<stat pass="4" fail="2" skip="0">All Tests</stat>
+</total>
+<tag>
+<stat pass="2" fail="0" skip="0">api</stat>
+<stat pass="2" fail="0" skip="0">ui</stat>
+<stat pass="0" fail="1" skip="0">ui_playwright</stat>
+<stat pass="0" fail="1" skip="0">visual</stat>
+</tag>
+<suite>
+<stat name="Robot" id="s1" pass="4" fail="2" skip="0">Robot</stat>
+<stat name="Api Tests" id="s1-s1" pass="2" fail="0" skip="0">Robot.Api Tests</stat>
+<stat name="Run Visual" id="s1-s2" pass="0" fail="1" skip="0">Robot.Run Visual</stat>
+<stat name="Ui Playwright" id="s1-s3" pass="0" fail="1" skip="0">Robot.Ui Playwright</stat>
+<stat name="Ui Tests" id="s1-s4" pass="2" fail="0" skip="0">Robot.Ui Tests</stat>
+</suite>
+</statistics>
+<errors>
+<msg time="2026-02-26T18:16:42.997279" level="WARN">Error in file 'C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\tests\robot\api_tests.robot' on line 34: The '[Return]' setting is deprecated. Use the 'RETURN' statement instead.</msg>
+<msg time="2026-02-26T18:16:42.999790" level="WARN">Error in file 'C:\Users\Maxkh\OneDrive\Documents\Code\Team Project\DispatcherAgent\tests\robot\ui_tests.robot' on line 31: The '[Return]' setting is deprecated. Use the 'RETURN' statement instead.</msg>
+<msg time="2026-02-26T18:16:43.102254" level="WARN">Keyword 'RequestsLibrary.Post Request' is deprecated. Please use `POST On Session` instead.</msg>
+<msg time="2026-02-26T18:16:43.116021" level="WARN">Keyword 'RequestsLibrary.Get Request' is deprecated. Please use `GET On Session` instead.</msg>
+<msg time="2026-02-26T18:16:43.121370" level="WARN">Keyword 'RequestsLibrary.Get Request' is deprecated. Please use `GET On Session` instead.</msg>
+<msg time="2026-02-26T18:16:45.804965" level="WARN">Keyword 'RequestsLibrary.Get Request' is deprecated. Please use `GET On Session` instead.</msg>
+<msg time="2026-02-26T18:16:45.818074" level="WARN">Keyword 'RequestsLibrary.Post Request' is deprecated. Please use `POST On Session` instead.</msg>
+</errors>
+</robot>
