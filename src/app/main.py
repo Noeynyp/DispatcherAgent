@@ -7,6 +7,8 @@ import networkx as nx
 
 from src.simulation.simulation import (
     create_sample_graph,
+    add_buildings,
+    Building,
     UnitState,
     advance_unit,
     compute_position,
@@ -36,6 +38,8 @@ class IncidentState:
 incidents: dict[str, IncidentState] = {}
 
 G = create_sample_graph()
+buildings = add_buildings(G, buildings_per_side=1)
+buildings_by_id: dict[str, Building] = {b.id: b for b in buildings}
 
 units = [
     UnitState("f1", "fire", "n0_0"),
@@ -87,52 +91,71 @@ def handle_unit_arrival(unit_id: str):
 
     unit = next(u for u in units if u.id == unit_id)
 
-    for incident in incidents.values():
-        if incident.assigned_unit == unit_id and incident.status == "assigned":
+    # Sync Prolog with the unit's actual current location
+    engine.update_unit_status(unit_id, unit.service, unit.current_node, "busy")
 
-            incident.status = "in_progress"
+    # Find assigned incident via Prolog (works for multi-service incidents
+    # where Python's incident.assigned_unit only holds the last-assigned unit)
+    assignment = list(engine.prolog.query(f"assigned({unit_id}, I)"))
+    if not assignment:
+        # No assignment found — free the unit
+        unit.status = "idle"
+        engine.update_unit_status(unit_id, unit.service, unit.current_node, "available")
+        return
 
-            handling_duration = 10
+    incident_id = str(assignment[0]["I"])
+    incident = incidents.get(incident_id)
 
-            unit.status = "handling"
-            unit.handling_remaining = handling_duration
+    if not incident or incident.status == "resolved":
+        unit.status = "idle"
+        engine.update_unit_status(unit_id, unit.service, unit.current_node, "available")
+        return
 
-            engine.assert_handling_time(incident.id, handling_duration)
+    # First unit to arrive transitions the incident to in_progress
+    if incident.status == "assigned":
+        incident.status = "in_progress"
 
-            print(f"[ARRIVED] {incident.id} → handling started")
-            break
+    handling_duration = 10
+    unit.status = "handling"
+    unit.handling_remaining = handling_duration
+
+    engine.assert_handling_time(incident.id, handling_duration)
+
+    print(f"[ARRIVED] {unit_id} → {incident.id} (status={incident.status})")
 
 def handle_unit_finish(unit_id: str):
 
     unit = next(u for u in units if u.id == unit_id)
 
-    for incident in incidents.values():
-        if incident.assigned_unit == unit_id and incident.status == "in_progress":
+    # Look up incident via Prolog (same as handle_unit_arrival — avoids
+    # relying on incident.assigned_unit which only holds the last-assigned unit)
+    assignment = list(engine.prolog.query(f"assigned({unit_id}, I)"))
 
-            incident.status = "resolved"
+    # Free the unit regardless of what we find
+    engine.clear_assignment(unit_id)
+    engine.update_unit_status(unit_id, unit.service, unit.current_node, "available")
+    unit.status = "idle"
 
-            # Clear assignment
-            engine.clear_assignment(unit_id)
+    if not assignment:
+        return
 
-            # Remove handling time
-            list(engine.prolog.query(
-                f"retractall(handling_time({incident.id}, _))"
-            ))
+    incident_id = str(assignment[0]["I"])
+    incident = incidents.get(incident_id)
 
-            # Mark unit available again
-            engine.update_unit_status(
-                unit_id,
-                unit.service,
-                unit.current_node,
-                "available"
-            )
+    if not incident or incident.status == "resolved":
+        return
 
-            unit.status = "idle"
+    incident.status = "resolved"
 
-            print(f"[RESOLVED] {incident.id} → {unit_id} now available")
+    # Retract the incident and its data from Prolog so it can never
+    # re-enter best_global_assignment and block new incidents
+    list(engine.prolog.query(f"retractall(incident({incident_id}, _, _, _, _, _))"))
+    list(engine.prolog.query(f"retractall(travel_time(_, {incident_id}, _))"))
+    list(engine.prolog.query(f"retractall(handling_time({incident_id}, _))"))
 
-            reevaluate_system()
-            break
+    print(f"[RESOLVED] {incident_id} → {unit_id} now available")
+
+    reevaluate_system()
 
 
 def maybe_escalate_incident(incident: IncidentState, current_time: int):
@@ -171,85 +194,150 @@ def maybe_escalate_incident(incident: IncidentState, current_time: int):
         
 
 
-def reevaluate_system():
+def _refresh_travel_times():
+    """
+    Recompute Prolog travel times from current unit positions for all active incidents.
+    Travel times are asserted at incident creation but units move — without refresh,
+    scores use stale distances and dispatch/reassignment decisions are wrong.
+    Handling units are skipped since they are on-scene and not candidates.
+    """
+    for unit in units:
+        if unit.status == "handling":
+            continue
+        for incident in incidents.values():
+            if incident.status not in ("waiting", "assigned"):
+                continue
+            eta = remaining_time_to_node(unit, incident.location, G)
+            engine.assert_travel_time(unit.id, incident.id, round(eta, 2))
 
-    while True:
 
-        result = list(engine.prolog.query(
-            "best_global_assignment(I,S,U,Score)"
-        ))
+def _check_reassignments() -> bool:
+    """
+    Check every moving unit against every waiting incident.
+    Uses Prolog's better_reassignment/3, which now allows same-or-higher urgency
+    so that a unit can cascade to an unattended incident at equal priority.
+    Returns True if any reassignment was made so the caller can loop again.
+    Only ONE reassignment is made per call — the loop in reevaluate_system retries.
+    """
+    for unit in units:
+        if unit.status != "moving":
+            continue
 
-        if not result:
-            break
+        old_assignment = list(engine.prolog.query(f"assigned({unit.id}, I)"))
+        if not old_assignment:
+            continue
 
-        incident_id = str(result[0]["I"])
-        unit_id = str(result[0]["U"])
+        old_incident_id = str(old_assignment[0]["I"])
+        old_incident = incidents.get(old_incident_id)
+        if not old_incident or old_incident.status != "assigned":
+            continue
 
-        incident = incidents.get(incident_id)
-        unit = next(u for u in units if u.id == unit_id)
+        for new_incident in incidents.values():
+            if new_incident.status != "waiting":
+                continue
 
-        if not incident:
-            break
-
-        # ----------------------------------------
-        # CASE 1: UNIT IS AVAILABLE → NORMAL ASSIGN
-        # ----------------------------------------
-        if unit.status == "idle":
-
-            assign_unit_to_incident(unit_id, incident)
-
-        # ----------------------------------------
-        # CASE 2: UNIT IS MOVING → CHECK REASSIGNMENT
-        # ----------------------------------------
-        elif unit.status == "moving":
-
-            # Find old incident
-            old_incident = None
-            for i in incidents.values():
-                if i.assigned_unit == unit_id and i.status in ("assigned", "waiting"):
-                    old_incident = i
-                    break
-
-            if not old_incident:
-                break
-
-            # Ask Prolog if reassignment is better
             reassess = list(engine.prolog.query(
-                f"better_reassignment({unit_id}, {old_incident.id}, {incident_id})"
+                f"better_reassignment({unit.id}, {old_incident_id}, {new_incident.id})"
             ))
 
             if reassess:
+                print(f"[REASSIGN] {unit.id}: {old_incident_id} → {new_incident.id}")
 
-                print(f"[REASSIGN] {unit_id} from {old_incident.id} → {incident_id}")
-
-                # Cancel old assignment
-                old_incident.assigned_unit = None
                 old_incident.status = "waiting"
+                old_incident.assigned_unit = None
+                engine.clear_assignment(unit.id)
 
-                # Assign new one
+                assign_unit_to_incident(unit.id, new_incident)
+
+                # Preserve current edge progress to avoid visual warping.
+                # Redirect from the next node in the current path onward.
+                if unit.path and len(unit.path) >= 2:
+                    next_node = unit.path[unit.edge_index + 1]
+                    tail = nx.shortest_path(G, next_node, new_incident.location, weight="weight")
+                    # Keep everything up to (not including) next_node, then append tail
+                    unit.path = unit.path[:unit.edge_index + 1] + tail
+                    # edge_index and progress are unchanged — unit continues on current edge
+                else:
+                    unit.path = nx.shortest_path(G, unit.current_node, new_incident.location, weight="weight")
+                    if len(unit.path) < 2:
+                        unit.current_node = new_incident.location
+                        unit.path = []
+                        unit.edge_index = 0
+                        unit.progress = 0.0
+                        handle_unit_arrival(unit.id)
+                    else:
+                        unit.edge_index = 0
+                        unit.progress = 0.0
+
+                return True  # Signal to reevaluate_system to loop again
+
+    return False
+
+
+def reevaluate_system():
+    """
+    Converging evaluation loop.
+
+    Each iteration:
+      1. Refresh travel times from current unit positions (fixes stale scoring).
+      2. Try to dispatch one idle unit via Prolog's best_global_assignment.
+         If dispatched → loop again (more units may be dispatchable).
+      3. If no idle dispatch is possible, try to reassign one moving unit.
+         If reassigned → loop again (freed incident may attract another unit).
+      4. If neither dispatch nor reassignment is possible → system is stable, stop.
+
+    A limit of 20 iterations prevents runaway loops on edge cases.
+    """
+    print("----- REEVALUATE -----")
+
+    for _ in range(20):
+
+        _refresh_travel_times()
+
+        # ── Phase 1: reassign moving units ──────────────────────────────────
+        # Run this BEFORE idle dispatch so that a moving unit closer to a new
+        # high-priority incident can be redirected while that incident is still
+        # "waiting". If we dispatched idle units first, the new incident would
+        # be marked "assigned" before reassignment ever checked it.
+        if _check_reassignments():
+            continue  # Reassignment freed an incident → refresh and retry
+
+        # ── Phase 2: dispatch idle units ────────────────────────────────────
+        result = list(engine.prolog.query("best_global_assignment(I,S,U,Score)"))
+        print("  best_global_assignment:", result)
+
+        if result:
+            incident_id = str(result[0]["I"])
+            unit_id = str(result[0]["U"])
+            incident = incidents.get(incident_id)
+            unit = next(u for u in units if u.id == unit_id)
+
+            # Stale resolved incident in Prolog — retract and retry
+            if not incident or incident.status == "resolved":
+                list(engine.prolog.query(f"retractall(incident({incident_id}, _, _, _, _, _))"))
+                list(engine.prolog.query(f"retractall(travel_time(_, {incident_id}, _))"))
+                list(engine.prolog.query(f"retractall(handling_time({incident_id}, _))"))
+                continue
+
+            if unit.status == "idle":
                 assign_unit_to_incident(unit_id, incident)
+                # Idle units know their exact node (including building nodes) —
+                # snap_to_nearest_node would skip building nodes and cause a warp.
+                unit.path = nx.shortest_path(G, unit.current_node, incident.location, weight="weight")
+                if len(unit.path) < 2:
+                    # Unit is already at the destination — trigger immediate arrival
+                    unit.current_node = incident.location
+                    unit.path = []
+                    unit.edge_index = 0
+                    unit.progress = 0.0
+                    handle_unit_arrival(unit.id)
+                else:
+                    unit.edge_index = 0
+                    unit.progress = 0.0
+                    unit.status = "moving"
+                continue  # Loop: try to dispatch another idle unit
 
-            else:
-                break
-
-        else:
-            break
-
-        # ----------------------------------------
-        # Update movement path
-        # ----------------------------------------
-        current_pos = compute_position(unit, G)
-        start_node = snap_to_nearest_node(current_pos, G)
-
-        new_path = nx.shortest_path(
-            G, start_node, incident.location, weight="weight"
-        )
-
-        unit.path = new_path
-        unit.edge_index = 0
-        unit.progress = 0.0
-        unit.status = "moving"
-
+        break  # No reassignment and no idle dispatch — fully stable
 
 
 # -----------------------------
@@ -296,38 +384,49 @@ def get_graph():
         nodes.append({
             "id": node,
             "x": data["pos"][0],
-            "y": data["pos"][1]
+            "y": data["pos"][1],
+            "type": data.get("type", "intersection")
         })
 
-    for u, v, data in G.edges(data=True):
-        edges.append({
-            "from": u,
-            "to": v
-        })
+    # Only send road edges (intersection ↔ intersection) — building connector
+    # edges are implicit from building positions and don't need to be drawn.
+    for u, v in G.edges():
+        if G.nodes[u].get("type") == "intersection" and G.nodes[v].get("type") == "intersection":
+            edges.append({"from": u, "to": v})
 
-    return {
-        "nodes": nodes,
-        "edges": edges
-    }
+    return {"nodes": nodes, "edges": edges}
 
 @app.get("/state")
 def get_state():
-    data = []
+    unit_data = []
     for u in units:
         x, y = compute_position(u, G)
-        data.append({
+        unit_data.append({
             "id": u.id,
             "x": x,
             "y": y,
-            "service": u.service
+            "service": u.service,
+            "status": u.status
         })
-    return {"units": data}
+
+    incident_data = []
+    for i in incidents.values():
+        incident_data.append({
+            "id": i.id,
+            "location": i.location,
+            "type": i.type,
+            "urgency": i.urgency,
+            "status": i.status,
+            "assigned_unit": i.assigned_unit
+        })
+
+    return {"units": unit_data, "incidents": incident_data}
 
 
 @app.post("/create_incident")
 def create_incident(data: dict = Body(...)):
 
-    node = data["node"]
+    location = data["location"]
     incident_type = data["type"]
     severity = data["severity"]
 
@@ -338,24 +437,27 @@ def create_incident(data: dict = Body(...)):
         id=incident_id,
         type=incident_type,
         severity=severity,
-        location=node,
+        location=location,
         created_time=now
     )
     incidents[incident_id] = incident
 
-    engine.assert_incident(incident_id, incident_type, severity, node, now)
+    engine.assert_incident(incident_id, incident_type, severity, location, now)
 
-    # Compute ETAs
+    # Read initial urgency that Prolog computed from severity
+    urg_result = list(engine.prolog.query(f"incident({incident_id}, _, _, _, _, U)"))
+    if urg_result:
+        incident.urgency = str(urg_result[0]["U"])
+
+    # Compute ETAs from current unit positions (building nodes are in the graph,
+    # so shortest_path works correctly for both intersection and building locations)
     for u in units:
-        eta = remaining_time_to_node(u, node, G)
+        eta = remaining_time_to_node(u, location, G)
         engine.assert_travel_time(u.id, incident_id, round(eta, 2))
 
-    # Trigger global dispatch instead of per-incident dispatch
     reevaluate_system()
 
-    return {
-        "message": "Incident registered. System reevaluated."
-    }
+    return {"message": "Incident registered. System reevaluated."}
 
 
 # Serve frontend

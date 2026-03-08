@@ -70,9 +70,15 @@ weighted_score(IncidentId, Unit, Score) :-
 % GLOBAL WEIGHTED SELECTION
 % ----------------------------------------
 
+% True if a unit of this specific service is already assigned to this incident
+service_already_assigned(IncidentId, Service) :-
+    assigned(Unit, IncidentId),
+    unit(Unit, Service, _, _, _).
+
 select_best_global_assignment(IncidentId, Service, Unit, Score) :-
     incident(IncidentId, _, _, _, _, _),
     required_service_for_incident(IncidentId, Service),
+    \+ service_already_assigned(IncidentId, Service),
     candidate_unit(IncidentId, Service, Unit),
     weighted_score(IncidentId, Unit, Score).
 
@@ -96,12 +102,16 @@ better_reassignment(Unit, OldIncident, NewIncident) :-
 
     % Both incidents must exist
     incident(OldIncident, _, _, _, _, OldUrg),
-    incident(NewIncident, _, _, _, _, NewUrg),
+    incident(NewIncident, NewType, _, _, _, NewUrg),
 
-    % New urgency must be strictly higher
+    % Unit's service must be compatible with the new incident
+    unit(Unit, Service, _, _, _),
+    required_service(NewType, Service),
+
+    % New urgency must be same or higher (allows cascading at same priority)
     urgency_rank(NewUrg, Rnew),
     urgency_rank(OldUrg, Rold),
-    Rnew > Rold,
+    Rnew >= Rold,
 
     % Compare weighted scores
     weighted_score(NewIncident, Unit, NewScore),
@@ -116,8 +126,7 @@ better_reassignment(Unit, OldIncident, NewIncident) :-
 candidate_unit(IncidentId, Service, Unit) :-
     incident(IncidentId, Type, _, _, _, _),
     required_service(Type, Service),
-    unit(Unit, Service, _, Status, _),
-    ( Status = available ; Status = busy ).
+    unit(Unit, Service, _, available, _).
 
 % ----------------------------------------
 % SELECT BEST UNIT (MAXIMIZE SCORE)
@@ -193,9 +202,9 @@ urgency_rank(medium, 2).
 urgency_rank(high, 3).
 urgency_rank(critical, 4).
 
-escalation_rule(low, 300, medium).
-escalation_rule(medium, 600, high).
-escalation_rule(high, 1200, critical).
+escalation_rule(low, 30, medium).
+escalation_rule(medium, 60, high).
+escalation_rule(high, 120, critical).
 
 escalate_urgency(IncidentId, CurrentTime) :-
     incident(IncidentId, Type, Sev, Loc, ReportedTime, Urg),

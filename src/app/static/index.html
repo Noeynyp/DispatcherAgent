@@ -4,21 +4,36 @@
     <title>Dispatcher Simulation</title>
     <style>
         body { background: #111; color: white; text-align: center; font-family: Arial; }
-        .road { stroke: #888; stroke-width: 3; }
-        .node { fill: #ccc; }
+        .road { stroke: #666; stroke-width: 6; stroke-linecap: round; }
+        .intersection { fill: #555; }
+        .building { fill: #8b6914; stroke: #c8a030; stroke-width: 1; cursor: pointer; }
+        .building:hover { fill: #c8a030; }
         .unit { stroke: white; stroke-width: 1; }
+        .incident { stroke: white; stroke-width: 1.5; }
+        #info {
+            margin: 20px auto;
+            width: 700px;
+            text-align: left;
+            font-family: monospace;
+            font-size: 13px;
+            background: #1e1e1e;
+            border: 1px solid #555;
+            padding: 12px 16px;
+            white-space: pre;
+        }
     </style>
 </head>
 <body>
 
 <h2>Emergency Dispatcher Simulation</h2>
+<p style="color:#aaa; font-size:13px; margin-top:-10px;">Click a building to report an incident</p>
 
 <svg id="map" width="700" height="700"
      viewBox="-50 -50 550 550"
-     style="background:#1e1e1e; border:1px solid #555;">
+     style="background:#1a1a2e; border:1px solid #555;">
 </svg>
 
-<div id="info" style="margin-top:20px;"></div>
+<div id="info"></div>
 
 
 <script>
@@ -31,10 +46,11 @@ async function loadGraph() {
     const svg = document.getElementById("map");
     svg.innerHTML = "";
 
-    // Draw roads
+    // Draw roads (intersection-to-intersection edges only)
     graphData.edges.forEach(e => {
         const n1 = graphData.nodes.find(n => n.id === e.from);
         const n2 = graphData.nodes.find(n => n.id === e.to);
+        if (!n1 || !n2) return;
 
         const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
         line.setAttribute("x1", n1.x);
@@ -45,19 +61,28 @@ async function loadGraph() {
         svg.appendChild(line);
     });
 
-    // Draw nodes
-    graphData.nodes.forEach(n => {
+    // Draw buildings (clickable squares offset from the road)
+    graphData.nodes.filter(n => n.type === "building").forEach(b => {
+        const size = 12;
+        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        rect.setAttribute("x", b.x - size / 2);
+        rect.setAttribute("y", b.y - size / 2);
+        rect.setAttribute("width", size);
+        rect.setAttribute("height", size);
+        rect.setAttribute("class", "building");
+        rect.addEventListener("click", () => createIncident(b.id));
+        svg.appendChild(rect);
+    });
+
+    // Draw intersections (clickable dots)
+    graphData.nodes.filter(n => n.type === "intersection").forEach(n => {
         const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
         circle.setAttribute("cx", n.x);
         circle.setAttribute("cy", n.y);
-        circle.setAttribute("r", 8);
-        circle.setAttribute("class", "node");
+        circle.setAttribute("r", 6);
+        circle.setAttribute("class", "intersection");
         circle.style.cursor = "pointer";
-
-        circle.addEventListener("click", () => {
-            createIncident(n.id);
-        });
-
+        circle.addEventListener("click", () => createIncident(n.id));
         svg.appendChild(circle);
     });
 
@@ -76,9 +101,9 @@ async function createUnitCircles() {
         circle.setAttribute("r", 10);
         circle.setAttribute("class", "unit");
 
-        if (u.service === "fire") circle.setAttribute("fill", "red");
+        if (u.service === "fire")    circle.setAttribute("fill", "red");
         if (u.service === "medical") circle.setAttribute("fill", "lime");
-        if (u.service === "police") circle.setAttribute("fill", "cyan");
+        if (u.service === "police")  circle.setAttribute("fill", "cyan");
 
         svg.appendChild(circle);
     });
@@ -88,6 +113,9 @@ async function update() {
     const res = await fetch("/state");
     const data = await res.json();
 
+    const svg = document.getElementById("map");
+
+    // Move unit dots
     data.units.forEach(u => {
         const el = document.getElementById(u.id);
         if (el) {
@@ -95,10 +123,63 @@ async function update() {
             el.setAttribute("cy", u.y);
         }
     });
+
+    // Redraw incident markers each tick
+    svg.querySelectorAll(".incident").forEach(el => el.remove());
+
+    data.incidents.forEach(i => {
+        if (i.status === "resolved") return;
+
+        const node = graphData.nodes.find(n => n.id === i.location);
+        if (!node) return;
+
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", node.x);
+        circle.setAttribute("cy", node.y);
+        circle.setAttribute("r", 14);
+        circle.setAttribute("class", "incident");
+        circle.setAttribute("opacity", "0.80");
+
+        const urgencyColor = {
+            low:      "#ffff00",
+            medium:   "#ff8800",
+            high:     "#ff2222",
+            critical: "#cc00ff",
+            unknown:  "#888888"
+        };
+        circle.setAttribute("fill", urgencyColor[i.urgency] || "#888888");
+
+        // Insert before first unit so units always render on top
+        const firstUnit = svg.querySelector(".unit");
+        if (firstUnit) svg.insertBefore(circle, firstUnit);
+        else svg.appendChild(circle);
+    });
+
+    // Info panel
+    const urgencyLabel = { low: "LOW", medium: "MED", high: "HIGH", critical: "CRIT", unknown: "?" };
+
+    let text = "INCIDENTS\n";
+    const active = data.incidents.filter(i => i.status !== "resolved");
+    if (active.length === 0) {
+        text += "  (none)\n";
+    } else {
+        active.forEach(i => {
+            const urg  = (urgencyLabel[i.urgency] || "?").padEnd(4);
+            const stat = i.status.padEnd(11);
+            const unit = i.assigned_unit || "—";
+            text += `  ${i.id}  ${i.type.padEnd(8)}  urgency=${urg}  ${stat}  assigned=${unit}\n`;
+        });
+    }
+
+    text += "\nUNITS\n";
+    data.units.forEach(u => {
+        text += `  ${u.id.padEnd(3)}  ${u.service.padEnd(7)}  ${u.status}\n`;
+    });
+
+    document.getElementById("info").innerText = text;
 }
 
-async function createIncident(nodeId) {
-
+async function createIncident(locationId) {
     const type = prompt("Type: fire / medical / accident");
     const severity = parseInt(prompt("Severity (1-5):"));
 
@@ -108,16 +189,19 @@ async function createIncident(nodeId) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-            node: nodeId,
+            location: locationId,
             type: type,
             severity: severity
         })
     });
 
-    const data = await res.json();
+    if (!res.ok) {
+        const err = await res.text();
+        document.getElementById("info").innerText = `ERROR creating incident:\n${err}`;
+        return;
+    }
 
-    document.getElementById("info").innerText =
-        `Assigned: ${data.assigned}\n${data.explanation}`;
+    document.getElementById("info").innerText = "Incident created. System reevaluating...";
 }
 
 loadGraph();

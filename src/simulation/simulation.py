@@ -7,6 +7,13 @@ import networkx as nx
 UNIT_SPEED = 20.0
 
 @dataclass
+class Building:
+    id: str
+    edge: Tuple[str, str]
+    offset: float   # 0.0–1.0 along the road edge
+    side: int       # +1 left of road direction, -1 right
+
+@dataclass
 class UnitState:
     id: str
     service: str
@@ -91,7 +98,6 @@ def remaining_time_to_node(unit, target_node, G):
             return float("inf")
 
     # If unit is moving
-    # 1️⃣ Remaining distance on current edge
     a = unit.path[unit.edge_index]
     b = unit.path[unit.edge_index + 1]
 
@@ -101,7 +107,6 @@ def remaining_time_to_node(unit, target_node, G):
     edge_length = math.dist(pos_a, pos_b)
     remaining_edge_distance = (1 - unit.progress) * edge_length
 
-    # 2️⃣ Remaining path after this edge
     remaining_path_distance = 0.0
 
     if unit.edge_index + 1 < len(unit.path) - 1:
@@ -113,7 +118,6 @@ def remaining_time_to_node(unit, target_node, G):
     else:
         next_node = unit.path[-1]
 
-    # 3️⃣ Distance from last path node to target
     try:
         path = nx.shortest_path(G, next_node, target_node, weight="weight")
         extra_distance = 0.0
@@ -128,10 +132,13 @@ def remaining_time_to_node(unit, target_node, G):
 
 
 def snap_to_nearest_node(pos: Tuple[float, float], G: nx.Graph) -> str:
+    """Snap to nearest intersection node only — building nodes are excluded."""
     best_node = None
     best_dist = float("inf")
 
     for node, data in G.nodes(data=True):
+        if data.get("type") == "building":
+            continue
         dist = euclid(pos, data["pos"])
         if dist < best_dist:
             best_dist = dist
@@ -146,13 +153,11 @@ def create_sample_graph() -> nx.Graph:
     size = 5
     spacing = 100
 
-    # Create grid nodes
     for i in range(size):
         for j in range(size):
             node_id = f"n{i}_{j}"
-            G.add_node(node_id, pos=(i * spacing, j * spacing))
+            G.add_node(node_id, pos=(i * spacing, j * spacing), type="intersection")
 
-    # Connect neighbors
     for i in range(size):
         for j in range(size):
             node = f"n{i}_{j}"
@@ -170,3 +175,53 @@ def create_sample_graph() -> nx.Graph:
                 G.add_edge(node, up, weight=euclid(pa, pb))
 
     return G
+
+
+def add_buildings(G: nx.Graph, buildings_per_side: int = 1) -> List[Building]:
+    """
+    Add building nodes to the graph along each road edge.
+    Buildings appear on both sides of the road. Each building is a real graph node
+    connected by a short edge to its nearest intersection, so units can navigate to them.
+    """
+    buildings = []
+    bid = 0
+    road_offset = 14        # perpendicular distance from road center (SVG units)
+    offsets = [0.5] if buildings_per_side == 1 else [0.3, 0.7]
+
+    for u, v in list(G.edges()):
+        # Only place buildings on road edges between intersections
+        if G.nodes[u].get("type") != "intersection" or G.nodes[v].get("type") != "intersection":
+            continue
+
+        ux, uy = G.nodes[u]["pos"]
+        vx, vy = G.nodes[v]["pos"]
+        dx, dy = vx - ux, vy - uy
+        length = math.hypot(dx, dy)
+        perp_x = -dy / length
+        perp_y = dx / length
+
+        for offset in offsets:
+            for side in [+1, -1]:
+                b_id = f"b{bid}"
+
+                # Position along the road at this offset
+                px = ux + offset * dx
+                py = uy + offset * dy
+
+                # Shift perpendicular to the road for visual placement
+                bx = px + side * road_offset * perp_x
+                by = py + side * road_offset * perp_y
+
+                # Connect to BOTH intersection endpoints so units approaching
+                # from either direction don't have to overshoot and double back.
+                dist_to_u = math.hypot(bx - ux, by - uy)
+                dist_to_v = math.hypot(bx - vx, by - vy)
+
+                G.add_node(b_id, pos=(bx, by), type="building")
+                G.add_edge(b_id, u, weight=dist_to_u)
+                G.add_edge(b_id, v, weight=dist_to_v)
+
+                buildings.append(Building(id=b_id, edge=(u, v), offset=offset, side=side))
+                bid += 1
+
+    return buildings
