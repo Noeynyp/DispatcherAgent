@@ -43,12 +43,12 @@ class PrologEngine:
             f"assertz(travel_time({unit_id}, {incident_id}, {seconds}))"
         ))
 
-    def assert_handling_time(self, incident_id, seconds):
+    def assert_handling_time(self, unit_id, incident_id, seconds):
         list(self.prolog.query(
-            f"retractall(handling_time({incident_id}, _))"
+            f"retractall(handling_time({unit_id}, {incident_id}, _))"
         ))
         list(self.prolog.query(
-            f"assertz(handling_time({incident_id}, {seconds}))"
+            f"assertz(handling_time({unit_id}, {incident_id}, {seconds}))"
         ))
 
     def clear_assignment(self, unit_id):

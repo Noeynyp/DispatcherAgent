@@ -3,110 +3,308 @@
 <head>
     <title>Dispatcher Simulation</title>
     <style>
-        body { background: #111; color: white; text-align: center; font-family: Arial; }
+        * { box-sizing: border-box; }
+        body { background: #111; color: #eee; font-family: Arial, sans-serif; margin: 0; padding: 12px; }
+        h2 { text-align: center; margin: 0 0 4px; }
+        .subtitle { text-align: center; color: #888; font-size: 12px; margin: 0 0 10px; }
+
+        #layout { display: flex; gap: 12px; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
+
+        #map { background: #1a1a2e; border: 1px solid #555; flex-shrink: 0; display: block; }
+
+        #sidebar {
+            width: 340px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .panel {
+            background: #1e1e1e;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 10px 12px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .panel h3 { margin: 0 0 8px; font-size: 13px; color: #aaa; letter-spacing: 1px; }
+
+        /* Incident cards */
+        .inc-card {
+            border-left: 3px solid #555;
+            margin-bottom: 8px;
+            padding: 4px 6px;
+            background: #252525;
+            border-radius: 2px;
+        }
+        .inc-card.urgency-low      { border-color: #ffff00; }
+        .inc-card.urgency-medium   { border-color: #ff8800; }
+        .inc-card.urgency-high     { border-color: #ff2222; }
+        .inc-card.urgency-critical { border-color: #cc00ff; }
+
+        .inc-header { display: flex; justify-content: space-between; align-items: center; }
+        .inc-title  { font-weight: bold; font-size: 12px; }
+        .inc-badge  { font-size: 10px; padding: 1px 5px; border-radius: 10px; background: #333; color: #aaa; }
+        .inc-badge.waiting     { background: #333; color: #aaa; }
+        .inc-badge.assigned    { background: #1a3a5c; color: #6af; }
+        .inc-badge.in_progress { background: #1a3a1a; color: #6f6; }
+
+        .slot-row { display: flex; justify-content: space-between; margin-top: 3px; font-size: 11px; color: #bbb; }
+        .slot-svc  { color: #fff; min-width: 55px; }
+        .slot-unit { color: #ddd; min-width: 30px; }
+        .slot-bar-wrap { flex: 1; margin: 0 6px; background: #333; border-radius: 3px; height: 6px; align-self: center; }
+        .slot-bar  { height: 6px; border-radius: 3px; transition: width 0.1s; }
+        .slot-time { min-width: 38px; text-align: right; }
+        .slot-done { color: #6f6; }
+        .slot-wait { color: #888; font-style: italic; }
+
+        /* Unit rows */
+        .unit-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-size: 12px; }
+        .unit-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .unit-id   { min-width: 28px; font-weight: bold; }
+        .unit-status { flex: 1; color: #aaa; }
+        .unit-extra  { font-size: 11px; color: #888; }
+        .preassign   { color: #f90; font-size: 10px; }
+
+        /* Incident creation form */
+        #create-form {
+            background: #1e1e1e;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 10px 12px;
+            font-size: 12px;
+        }
+        #create-form h3 { margin: 0 0 8px; font-size: 13px; color: #aaa; letter-spacing: 1px; }
+        #create-form .row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+        #create-form label { color: #aaa; width: 70px; }
+        #create-form select, #create-form input {
+            flex: 1; background: #2a2a2a; border: 1px solid #555; color: #eee;
+            padding: 3px 6px; border-radius: 3px; font-size: 12px;
+        }
+        #create-form .hint { color: #666; font-size: 11px; margin-top: 2px; }
+        #create-status { color: #6af; font-size: 11px; margin-top: 4px; min-height: 16px; }
+
         .road { stroke: #666; stroke-width: 6; stroke-linecap: round; }
-        .intersection { fill: #555; }
+        .intersection { fill: #555; cursor: pointer; }
+        .intersection:hover { fill: #aaa; }
         .building { fill: #8b6914; stroke: #c8a030; stroke-width: 1; cursor: pointer; }
         .building:hover { fill: #c8a030; }
-        .unit { stroke: white; stroke-width: 1; }
-        .incident { stroke: white; stroke-width: 1.5; }
-        #info {
-            margin: 20px auto;
-            width: 700px;
-            text-align: left;
-            font-family: monospace;
-            font-size: 13px;
-            background: #1e1e1e;
-            border: 1px solid #555;
-            padding: 12px 16px;
-            white-space: pre;
-        }
+        .unit-circle { stroke: white; stroke-width: 1; }
+        .unit-label  { font-size: 7px; fill: white; text-anchor: middle; dominant-baseline: central; pointer-events: none; font-weight: bold; }
+        .incident-circle { stroke: white; stroke-width: 1.5; }
+        .incident-label  { font-size: 9px; fill: white; text-anchor: middle; dominant-baseline: central; pointer-events: none; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <h2>Emergency Dispatcher Simulation</h2>
-<p style="color:#aaa; font-size:13px; margin-top:-10px;">Click a building to report an incident</p>
+<p class="subtitle">Click a building or intersection to report an incident</p>
 
-<svg id="map" width="700" height="700"
-     viewBox="-50 -50 550 550"
-     style="background:#1a1a2e; border:1px solid #555;">
-</svg>
+<div id="layout">
+    <svg id="map"></svg>
 
-<div id="info"></div>
+    <div id="sidebar">
 
+        <div id="create-form">
+            <h3>REPORT INCIDENT</h3>
+            <div class="row">
+                <label>Type</label>
+                <select id="inc-type">
+                    <optgroup label="── Fire ──">
+                        <option value="fire">Fire</option>
+                        <option value="structure_fire">Structure Fire</option>
+                        <option value="hazmat">Hazmat Spill</option>
+                        <option value="gas_leak">Gas Leak</option>
+                    </optgroup>
+                    <optgroup label="── Medical ──">
+                        <option value="medical">Medical Emergency</option>
+                        <option value="cardiac">Cardiac Arrest</option>
+                        <option value="overdose">Overdose</option>
+                    </optgroup>
+                    <optgroup label="── Police ──">
+                        <option value="robbery">Robbery</option>
+                        <option value="domestic">Domestic Disturbance</option>
+                    </optgroup>
+                    <optgroup label="── Multi-unit ──">
+                        <option value="accident" selected>Traffic Accident</option>
+                        <option value="shooting">Shooting</option>
+                        <option value="building_collapse">Building Collapse</option>
+                    </optgroup>
+                </select>
+            </div>
+            <div class="row">
+                <label>Severity</label>
+                <select id="inc-severity">
+                    <option value="1">1 — Minor</option>
+                    <option value="2">2 — Low</option>
+                    <option value="3" selected>3 — Medium</option>
+                    <option value="4">4 — High</option>
+                    <option value="5">5 — Critical</option>
+                </select>
+            </div>
+            <div class="hint">Select location on map, then click "Report"</div>
+            <div class="row" style="margin-top:6px;">
+                <span id="selected-loc" style="flex:1; color:#888; font-size:11px; font-family:monospace;">No location selected</span>
+                <button id="report-btn" onclick="submitIncident()"
+                    style="background:#1a3a5c; border:1px solid #6af; color:#6af; padding:4px 10px; border-radius:3px; cursor:pointer; font-size:12px;">
+                    Report
+                </button>
+            </div>
+            <div id="create-status"></div>
+        </div>
+
+        <div class="panel" id="inc-panel">
+            <h3>INCIDENTS</h3>
+            <div id="inc-list"><span style="color:#555">(none)</span></div>
+        </div>
+
+        <div class="panel" id="unit-panel">
+            <h3>UNITS</h3>
+            <div id="unit-list"></div>
+        </div>
+
+    </div>
+</div>
 
 <script>
 let graphData = null;
+let selectedLocation = null;
+
+const SERVICE_COLOR = { fire: "#ff4444", medical: "#44ff44", police: "#44ddff" };
+const URGENCY_COLOR = { low: "#ffff00", medium: "#ff8800", high: "#ff2222", critical: "#cc00ff", unknown: "#888" };
+const URGENCY_LABEL = { low: "LOW", medium: "MED", high: "HIGH", critical: "CRIT", unknown: "?" };
+const TYPE_ICON = {
+    fire: "F",  medical: "M",  robbery: "RB", cardiac: "CA",
+    overdose: "OD", domestic: "DM", accident: "AC", shooting: "SH",
+    structure_fire: "SF", hazmat: "HZ", gas_leak: "GL",
+    building_collapse: "BC",
+};
+// Outer ring color on map to distinguish incident category at a glance
+const TYPE_RING = {
+    fire: "#ff6600", structure_fire: "#ff6600", hazmat: "#ff6600", gas_leak: "#ff6600",
+    medical: "#44ff44", cardiac: "#44ff44", overdose: "#44ff44",
+    robbery: "#44ddff", domestic: "#44ddff",
+    accident: "#ffffff", shooting: "#ffffff", building_collapse: "#ffffff",
+};
+const SERVICE_BAR_COLOR = { fire: "#ff4444", medical: "#44ff44", police: "#44ddff" };
 
 async function loadGraph() {
-    const graphRes = await fetch("/graph");
-    graphData = await graphRes.json();
+    const res = await fetch("/graph");
+    graphData = await res.json();
 
     const svg = document.getElementById("map");
     svg.innerHTML = "";
 
-    // Draw roads (intersection-to-intersection edges only)
+    const b = graphData.bounds;
+    svg.setAttribute("viewBox", `${b.minX} ${b.minY} ${b.width} ${b.height}`);
+    const maxW = Math.min(window.innerWidth - 380, 900);
+    const aspect = b.height / b.width;
+    svg.setAttribute("width", maxW);
+    svg.setAttribute("height", Math.round(maxW * aspect));
+
+    // Roads
     graphData.edges.forEach(e => {
         const n1 = graphData.nodes.find(n => n.id === e.from);
         const n2 = graphData.nodes.find(n => n.id === e.to);
         if (!n1 || !n2) return;
-
         const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        line.setAttribute("x1", n1.x);
-        line.setAttribute("y1", n1.y);
-        line.setAttribute("x2", n2.x);
-        line.setAttribute("y2", n2.y);
+        line.setAttribute("x1", n1.x); line.setAttribute("y1", n1.y);
+        line.setAttribute("x2", n2.x); line.setAttribute("y2", n2.y);
         line.setAttribute("class", "road");
         svg.appendChild(line);
     });
 
-    // Draw buildings (clickable squares offset from the road)
+    // Buildings
     graphData.nodes.filter(n => n.type === "building").forEach(b => {
         const size = 12;
         const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        rect.setAttribute("x", b.x - size / 2);
-        rect.setAttribute("y", b.y - size / 2);
-        rect.setAttribute("width", size);
-        rect.setAttribute("height", size);
+        rect.setAttribute("x", b.x - size/2); rect.setAttribute("y", b.y - size/2);
+        rect.setAttribute("width", size); rect.setAttribute("height", size);
         rect.setAttribute("class", "building");
-        rect.addEventListener("click", () => createIncident(b.id));
+        rect.addEventListener("click", () => selectLocation(b.id));
         svg.appendChild(rect);
     });
 
-    // Draw intersections (clickable dots)
+    // Intersections
     graphData.nodes.filter(n => n.type === "intersection").forEach(n => {
-        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-        circle.setAttribute("cx", n.x);
-        circle.setAttribute("cy", n.y);
-        circle.setAttribute("r", 6);
-        circle.setAttribute("class", "intersection");
-        circle.style.cursor = "pointer";
-        circle.addEventListener("click", () => createIncident(n.id));
-        svg.appendChild(circle);
+        const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        c.setAttribute("cx", n.x); c.setAttribute("cy", n.y); c.setAttribute("r", 6);
+        c.setAttribute("class", "intersection");
+        c.addEventListener("click", () => selectLocation(n.id));
+        svg.appendChild(c);
     });
 
-    createUnitCircles();
+    // Create unit SVG groups (circle + label)
+    const stateRes = await fetch("/state");
+    const data = await stateRes.json();
+    data.units.forEach(u => {
+        const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        g.setAttribute("id", "unit-" + u.id);
+
+        const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        c.setAttribute("r", 10);
+        c.setAttribute("class", "unit-circle");
+        c.setAttribute("fill", SERVICE_COLOR[u.service] || "#aaa");
+
+        const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        t.setAttribute("class", "unit-label");
+        t.textContent = u.id.toUpperCase();
+
+        g.appendChild(c); g.appendChild(t);
+        svg.appendChild(g);
+    });
 }
 
-async function createUnitCircles() {
-    const res = await fetch("/state");
-    const data = await res.json();
+function selectLocation(nodeId) {
+    selectedLocation = nodeId;
+    document.getElementById("selected-loc").textContent = nodeId;
+    document.getElementById("selected-loc").style.color = "#6af";
 
+    // Highlight on map
+    document.querySelectorAll(".selected-loc-marker").forEach(e => e.remove());
     const svg = document.getElementById("map");
+    const node = graphData.nodes.find(n => n.id === nodeId);
+    if (node) {
+        const ring = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        ring.setAttribute("cx", node.x); ring.setAttribute("cy", node.y);
+        ring.setAttribute("r", 18); ring.setAttribute("fill", "none");
+        ring.setAttribute("stroke", "#6af"); ring.setAttribute("stroke-width", "2");
+        ring.setAttribute("class", "selected-loc-marker");
+        ring.setAttribute("opacity", "0.8");
+        const firstUnit = svg.querySelector("[id^='unit-']");
+        if (firstUnit) svg.insertBefore(ring, firstUnit);
+        else svg.appendChild(ring);
+    }
+}
 
-    data.units.forEach(u => {
-        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-        circle.setAttribute("id", u.id);
-        circle.setAttribute("r", 10);
-        circle.setAttribute("class", "unit");
+async function submitIncident() {
+    if (!selectedLocation) {
+        document.getElementById("create-status").textContent = "Select a location on the map first.";
+        return;
+    }
+    const type = document.getElementById("inc-type").value;
+    const severity = parseInt(document.getElementById("inc-severity").value);
+    document.getElementById("create-status").textContent = "Reporting...";
 
-        if (u.service === "fire")    circle.setAttribute("fill", "red");
-        if (u.service === "medical") circle.setAttribute("fill", "lime");
-        if (u.service === "police")  circle.setAttribute("fill", "cyan");
-
-        svg.appendChild(circle);
+    const res = await fetch("/create_incident", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location: selectedLocation, type, severity })
     });
+
+    if (!res.ok) {
+        const err = await res.text();
+        document.getElementById("create-status").textContent = "ERROR: " + err;
+        return;
+    }
+
+    document.getElementById("create-status").textContent =
+        `Reported ${type} at ${selectedLocation}`;
+    document.querySelectorAll(".selected-loc-marker").forEach(e => e.remove());
+    selectedLocation = null;
+    document.getElementById("selected-loc").textContent = "No location selected";
+    document.getElementById("selected-loc").style.color = "#888";
 }
 
 async function update() {
@@ -115,93 +313,124 @@ async function update() {
 
     const svg = document.getElementById("map");
 
-    // Move unit dots
+    // Move units
     data.units.forEach(u => {
-        const el = document.getElementById(u.id);
-        if (el) {
-            el.setAttribute("cx", u.x);
-            el.setAttribute("cy", u.y);
-        }
+        const g = document.getElementById("unit-" + u.id);
+        if (!g) return;
+        const c = g.querySelector("circle");
+        const t = g.querySelector("text");
+        if (c) { c.setAttribute("cx", u.x); c.setAttribute("cy", u.y); }
+        if (t) { t.setAttribute("x", u.x); t.setAttribute("y", u.y); }
+
+        // Dim while idle, pulse while handling
+        if (u.status === "idle")     c.setAttribute("opacity", "0.5");
+        else if (u.status === "handling") c.setAttribute("opacity", "1.0");
+        else                          c.setAttribute("opacity", "0.9");
     });
 
-    // Redraw incident markers each tick
-    svg.querySelectorAll(".incident").forEach(el => el.remove());
-
+    // Redraw incident markers
+    svg.querySelectorAll(".incident-group").forEach(el => el.remove());
     data.incidents.forEach(i => {
         if (i.status === "resolved") return;
-
         const node = graphData.nodes.find(n => n.id === i.location);
         if (!node) return;
 
-        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-        circle.setAttribute("cx", node.x);
-        circle.setAttribute("cy", node.y);
-        circle.setAttribute("r", 14);
-        circle.setAttribute("class", "incident");
-        circle.setAttribute("opacity", "0.80");
+        const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        g.setAttribute("class", "incident-group");
 
-        const urgencyColor = {
-            low:      "#ffff00",
-            medium:   "#ff8800",
-            high:     "#ff2222",
-            critical: "#cc00ff",
-            unknown:  "#888888"
-        };
-        circle.setAttribute("fill", urgencyColor[i.urgency] || "#888888");
+        // Outer ring showing incident category (fire/medical/police/multi)
+        const ring = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        ring.setAttribute("cx", node.x); ring.setAttribute("cy", node.y);
+        ring.setAttribute("r", 18); ring.setAttribute("fill", "none");
+        ring.setAttribute("stroke", TYPE_RING[i.type] || "#aaa");
+        ring.setAttribute("stroke-width", "2.5");
+        ring.setAttribute("opacity", "0.7");
 
-        // Insert before first unit so units always render on top
-        const firstUnit = svg.querySelector(".unit");
-        if (firstUnit) svg.insertBefore(circle, firstUnit);
-        else svg.appendChild(circle);
+        const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        c.setAttribute("cx", node.x); c.setAttribute("cy", node.y);
+        c.setAttribute("r", 14); c.setAttribute("class", "incident-circle");
+        c.setAttribute("fill", URGENCY_COLOR[i.urgency] || "#888");
+        c.setAttribute("opacity", i.status === "in_progress" ? "0.95" : "0.75");
+
+        const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        t.setAttribute("x", node.x); t.setAttribute("y", node.y);
+        t.setAttribute("class", "incident-label");
+        t.setAttribute("font-size", "8");
+        t.textContent = TYPE_ICON[i.type] || "?";
+
+        g.appendChild(ring); g.appendChild(c); g.appendChild(t);
+
+        const firstUnit = svg.querySelector("[id^='unit-']");
+        if (firstUnit) svg.insertBefore(g, firstUnit);
+        else svg.appendChild(g);
     });
 
-    // Info panel
-    const urgencyLabel = { low: "LOW", medium: "MED", high: "HIGH", critical: "CRIT", unknown: "?" };
-
-    let text = "INCIDENTS\n";
+    // --- Incident panel ---
     const active = data.incidents.filter(i => i.status !== "resolved");
+    const incList = document.getElementById("inc-list");
     if (active.length === 0) {
-        text += "  (none)\n";
+        incList.innerHTML = '<span style="color:#555">(none)</span>';
     } else {
-        active.forEach(i => {
-            const urg  = (urgencyLabel[i.urgency] || "?").padEnd(4);
-            const stat = i.status.padEnd(11);
-            const unit = i.assigned_unit || "—";
-            text += `  ${i.id}  ${i.type.padEnd(8)}  urgency=${urg}  ${stat}  assigned=${unit}\n`;
-        });
+        incList.innerHTML = active.map(i => {
+            const slotsHtml = i.service_slots ? Object.entries(i.service_slots).map(([svc, s]) => {
+                if (s.status === "resolved") {
+                    return `<div class="slot-row">
+                        <span class="slot-svc">${svc}</span>
+                        <span class="slot-done">✓ done</span>
+                    </div>`;
+                }
+                if (s.status === "waiting") {
+                    return `<div class="slot-row">
+                        <span class="slot-svc">${svc}</span>
+                        <span class="slot-wait">waiting for unit</span>
+                        <span class="slot-time" style="color:#666">est ${s.estimated_handling_time}s</span>
+                    </div>`;
+                }
+                if (s.status === "assigned") {
+                    return `<div class="slot-row">
+                        <span class="slot-svc">${svc}</span>
+                        <span class="slot-unit">${s.assigned_unit || "—"}</span>
+                        <div class="slot-bar-wrap"><div class="slot-bar" style="width:0%;background:${SERVICE_BAR_COLOR[svc]||'#aaa'}"></div></div>
+                        <span class="slot-time" style="color:#888">en route</span>
+                    </div>`;
+                }
+                // in_progress
+                const total = s.on_scene_handling_time || 1;
+                const rem = s.handling_remaining != null ? s.handling_remaining : 0;
+                const pct = Math.max(0, Math.min(100, (1 - rem / total) * 100)).toFixed(0);
+                return `<div class="slot-row">
+                    <span class="slot-svc">${svc}</span>
+                    <span class="slot-unit">${s.assigned_unit || "—"}</span>
+                    <div class="slot-bar-wrap"><div class="slot-bar" style="width:${pct}%;background:${SERVICE_BAR_COLOR[svc]||'#aaa'}"></div></div>
+                    <span class="slot-time">${rem.toFixed(1)}s</span>
+                </div>`;
+            }).join("") : "";
+
+            return `<div class="inc-card urgency-${i.urgency}">
+                <div class="inc-header">
+                    <span class="inc-title">${TYPE_ICON[i.type] || "?"} ${i.type.toUpperCase()} · ${URGENCY_LABEL[i.urgency]}</span>
+                    <span class="inc-badge ${i.status}">${i.status}</span>
+                </div>
+                <div style="color:#666; font-size:10px; margin:2px 0 4px;">${i.id} @ ${i.location}</div>
+                ${slotsHtml}
+            </div>`;
+        }).join("");
     }
 
-    text += "\nUNITS\n";
-    data.units.forEach(u => {
-        text += `  ${u.id.padEnd(3)}  ${u.service.padEnd(7)}  ${u.status}\n`;
-    });
-
-    document.getElementById("info").innerText = text;
-}
-
-async function createIncident(locationId) {
-    const type = prompt("Type: fire / medical / accident");
-    const severity = parseInt(prompt("Severity (1-5):"));
-
-    if (!type || !severity) return;
-
-    const res = await fetch(`/create_incident`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            location: locationId,
-            type: type,
-            severity: severity
-        })
-    });
-
-    if (!res.ok) {
-        const err = await res.text();
-        document.getElementById("info").innerText = `ERROR creating incident:\n${err}`;
-        return;
-    }
-
-    document.getElementById("info").innerText = "Incident created. System reevaluating...";
+    // --- Unit panel ---
+    document.getElementById("unit-list").innerHTML = data.units.map(u => {
+        const dot = `<div class="unit-dot" style="background:${SERVICE_COLOR[u.service]||'#aaa'};opacity:${u.status==='idle'?0.4:1}"></div>`;
+        let statusTxt = u.status;
+        if (u.status === "handling" && u.handling_remaining != null)
+            statusTxt = `handling (${u.handling_remaining.toFixed(1)}s)`;
+        const pre = u.pre_assigned_to
+            ? `<span class="preassign"> → queued: ${u.pre_assigned_to}</span>` : "";
+        return `<div class="unit-row">
+            ${dot}
+            <span class="unit-id">${u.id}</span>
+            <span class="unit-status">${statusTxt}${pre}</span>
+        </div>`;
+    }).join("");
 }
 
 loadGraph();

@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import List, Tuple, Optional
 import math
+import random
 import networkx as nx
 
 
@@ -97,7 +98,13 @@ def remaining_time_to_node(unit, target_node, G):
         except nx.NetworkXNoPath:
             return float("inf")
 
-    # If unit is moving
+    # If unit is moving: finish the current edge, then take the shortest path
+    # from b (end of current edge) to target_node.
+    # The old implementation added remaining_path_distance (distance from b along
+    # the current path to path[-1]) ON TOP of extra_distance (shortest path from b
+    # to target). When target == path[-1] that double-counts the whole remaining
+    # journey. When target is different it adds irrelevant detour distance, making
+    # moving units look much slower than they are — causing spurious takeovers.
     a = unit.path[unit.edge_index]
     b = unit.path[unit.edge_index + 1]
 
@@ -107,28 +114,15 @@ def remaining_time_to_node(unit, target_node, G):
     edge_length = math.dist(pos_a, pos_b)
     remaining_edge_distance = (1 - unit.progress) * edge_length
 
-    remaining_path_distance = 0.0
-
-    if unit.edge_index + 1 < len(unit.path) - 1:
-        next_node = unit.path[unit.edge_index + 1]
-        remaining_nodes = unit.path[unit.edge_index + 1:]
-
-        for x, y in zip(remaining_nodes, remaining_nodes[1:]):
-            remaining_path_distance += G.edges[x, y]["weight"]
-    else:
-        next_node = unit.path[-1]
-
     try:
-        path = nx.shortest_path(G, next_node, target_node, weight="weight")
+        path = nx.shortest_path(G, b, target_node, weight="weight")
         extra_distance = 0.0
-        for a, b in zip(path, path[1:]):
-            extra_distance += G.edges[a, b]["weight"]
+        for x, y in zip(path, path[1:]):
+            extra_distance += G.edges[x, y]["weight"]
     except nx.NetworkXNoPath:
         return float("inf")
 
-    total_distance = remaining_edge_distance + remaining_path_distance + extra_distance
-
-    return total_distance / UNIT_SPEED
+    return (remaining_edge_distance + extra_distance) / UNIT_SPEED
 
 
 def snap_to_nearest_node(pos: Tuple[float, float], G: nx.Graph) -> str:
@@ -150,25 +144,37 @@ def snap_to_nearest_node(pos: Tuple[float, float], G: nx.Graph) -> str:
 def create_sample_graph() -> nx.Graph:
     G = nx.Graph()
 
-    size = 5
-    spacing = 100
+    cols = 12
+    rows = 12
 
-    for i in range(size):
-        for j in range(size):
+    # Fixed seed → same city layout every restart
+    rng = random.Random(42)
+
+    # Irregular column and row positions — gaps between 60 and 130 units
+    x_pos = [0]
+    for _ in range(cols - 1):
+        x_pos.append(x_pos[-1] + rng.randint(60, 130))
+
+    y_pos = [0]
+    for _ in range(rows - 1):
+        y_pos.append(y_pos[-1] + rng.randint(60, 130))
+
+    for i in range(cols):
+        for j in range(rows):
             node_id = f"n{i}_{j}"
-            G.add_node(node_id, pos=(i * spacing, j * spacing), type="intersection")
+            G.add_node(node_id, pos=(x_pos[i], y_pos[j]), type="intersection")
 
-    for i in range(size):
-        for j in range(size):
+    for i in range(cols):
+        for j in range(rows):
             node = f"n{i}_{j}"
 
-            if i < size - 1:
+            if i < cols - 1:
                 right = f"n{i+1}_{j}"
                 pa = G.nodes[node]["pos"]
                 pb = G.nodes[right]["pos"]
                 G.add_edge(node, right, weight=euclid(pa, pb))
 
-            if j < size - 1:
+            if j < rows - 1:
                 up = f"n{i}_{j+1}"
                 pa = G.nodes[node]["pos"]
                 pb = G.nodes[up]["pos"]
@@ -177,16 +183,16 @@ def create_sample_graph() -> nx.Graph:
     return G
 
 
-def add_buildings(G: nx.Graph, buildings_per_side: int = 1) -> List[Building]:
+def add_buildings(G: nx.Graph, min_building_spacing: float = 45.0) -> List[Building]:
     """
     Add building nodes to the graph along each road edge.
-    Buildings appear on both sides of the road. Each building is a real graph node
-    connected by a short edge to its nearest intersection, so units can navigate to them.
+    Number of buildings per side scales with road length — longer roads get more buildings.
+    Each building is a real graph node connected to both endpoints so units approach
+    from whichever direction is shorter.
     """
     buildings = []
     bid = 0
-    road_offset = 14        # perpendicular distance from road center (SVG units)
-    offsets = [0.5] if buildings_per_side == 1 else [0.3, 0.7]
+    road_offset = 13        # perpendicular distance from road center (SVG units)
 
     for u, v in list(G.edges()):
         # Only place buildings on road edges between intersections
@@ -200,6 +206,10 @@ def add_buildings(G: nx.Graph, buildings_per_side: int = 1) -> List[Building]:
         perp_x = -dy / length
         perp_y = dx / length
 
+        # Proportional building count: one per ~45 units of road length
+        num_buildings = max(1, round(length / min_building_spacing))
+        offsets = [(i + 1) / (num_buildings + 1) for i in range(num_buildings)]
+
         for offset in offsets:
             for side in [+1, -1]:
                 b_id = f"b{bid}"
@@ -212,8 +222,7 @@ def add_buildings(G: nx.Graph, buildings_per_side: int = 1) -> List[Building]:
                 bx = px + side * road_offset * perp_x
                 by = py + side * road_offset * perp_y
 
-                # Connect to BOTH intersection endpoints so units approaching
-                # from either direction don't have to overshoot and double back.
+                # Connect to BOTH endpoints — units approach from whichever is shorter
                 dist_to_u = math.hypot(bx - ux, by - uy)
                 dist_to_v = math.hypot(bx - vx, by - vy)
 

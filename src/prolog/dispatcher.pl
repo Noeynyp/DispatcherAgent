@@ -1,23 +1,49 @@
 :- dynamic incident/6.
 :- dynamic unit/5.
 :- dynamic assigned/2.
+:- dynamic pre_assigned/2.
 :- dynamic travel_time/3.
-:- dynamic handling_time/2.
+:- dynamic handling_time/3.
+:- dynamic service_complete/2.
+
+% service_complete(IncidentId, Service) — asserted when a service slot finishes on scene.
+% Prevents re-dispatch to an already-completed service on a still-active incident.
 
 % incident(Id, Type, Severity, LocationNode, ReportedTimeEpoch, Urgency)
-% unit(Id, Service, LocationNode, Status, Notes)
-% assigned(UnitId, IncidentId)
+% unit(Id, Service, LocationNode, Status, Notes)  Status: available | busy (moving) | handling
+% assigned(UnitId, IncidentId)      — active assignment (moving to or handling)
+% pre_assigned(UnitId, IncidentId)  — next assignment queued while unit is still handling
 % travel_time(UnitId, IncidentId, Seconds)
-% handling_time(IncidentId, Seconds)
+% handling_time(UnitId, IncidentId, Seconds)  — per-unit, set on arrival, decremented in Python
 
 % ----------------------------------------
 % SERVICES REQUIRED BY INCIDENT TYPE
 % ----------------------------------------
 
-required_service(fire, fire).
-required_service(medical, medical).
-required_service(accident, police).
-required_service(accident, medical).
+% Single-service incidents
+required_service(fire,           fire).
+required_service(medical,        medical).
+required_service(robbery,        police).
+required_service(cardiac,        medical).
+required_service(overdose,       medical).
+required_service(domestic,       police).
+
+% Two-service incidents
+required_service(accident,       police).
+required_service(accident,       medical).
+required_service(shooting,       police).
+required_service(shooting,       medical).
+required_service(structure_fire, fire).
+required_service(structure_fire, medical).
+required_service(hazmat,         fire).
+required_service(hazmat,         medical).
+required_service(gas_leak,       fire).
+required_service(gas_leak,       police).
+
+% Three-service incident
+required_service(building_collapse, fire).
+required_service(building_collapse, medical).
+required_service(building_collapse, police).
 
 % ----------------------------------------
 % URGENCY INITIALIZATION
@@ -41,7 +67,7 @@ add_unit(Id, Service, Loc, Status, Notes) :-
 
 remaining_task_time(Unit, Time) :-
     assigned(Unit, OldIncident),
-    handling_time(OldIncident, Time), !.
+    handling_time(Unit, OldIncident, Time), !.
 remaining_task_time(_, 0).
 
 effective_response_time(Unit, Incident, TotalTime) :-
@@ -70,10 +96,13 @@ weighted_score(IncidentId, Unit, Score) :-
 % GLOBAL WEIGHTED SELECTION
 % ----------------------------------------
 
-% True if a unit of this specific service is already assigned to this incident
+% True if a unit of this specific service is already assigned (or pre-assigned) to this incident,
+% OR if the service slot has already been completed on scene (prevents re-dispatch after finish).
 service_already_assigned(IncidentId, Service) :-
-    assigned(Unit, IncidentId),
+    (assigned(Unit, IncidentId) ; pre_assigned(Unit, IncidentId)),
     unit(Unit, Service, _, _, _).
+service_already_assigned(IncidentId, Service) :-
+    service_complete(IncidentId, Service).
 
 select_best_global_assignment(IncidentId, Service, Unit, Score) :-
     incident(IncidentId, _, _, _, _, _),
@@ -123,10 +152,16 @@ better_reassignment(Unit, OldIncident, NewIncident) :-
 % CANDIDATE UNIT SELECTION
 % ----------------------------------------
 
+% Available (idle) units and on-scene handling units are both candidates.
+% handling units contribute remaining_task_time to effective_response_time,
+% so scoring naturally prefers them when they finish sooner than a far idle unit.
+% Exclude units that already have a queued pre-assignment.
 candidate_unit(IncidentId, Service, Unit) :-
     incident(IncidentId, Type, _, _, _, _),
     required_service(Type, Service),
-    unit(Unit, Service, _, available, _).
+    unit(Unit, Service, _, Status, _),
+    (Status = available ; Status = handling),
+    \+ pre_assigned(Unit, _).
 
 % ----------------------------------------
 % SELECT BEST UNIT (MAXIMIZE SCORE)
