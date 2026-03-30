@@ -79,8 +79,12 @@ effective_response_time(Unit, Incident, TotalTime) :-
 % WEIGHTED SCORE LOGIC
 % ----------------------------------------
 
-% Adjustable weights
-weight_urgency(15).
+% Adjustable weights.
+% weight_urgency / weight_time ratio = breakeven travel seconds per urgency rank.
+% Grid crossing ≈ 74 s of pure travel; ratio = 100 means urgency wins over travel
+% differences shorter than 100 s (≈ 1.3× map width), preventing travel from
+% dominating over urgency at typical cross-city distances.
+weight_urgency(100).
 weight_time(1).
 
 weighted_score(IncidentId, Unit, Score) :-

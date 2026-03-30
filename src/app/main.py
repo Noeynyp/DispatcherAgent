@@ -3,6 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from dataclasses import dataclass
 import threading
 import time
+import random
 import networkx as nx
 
 from src.simulation.simulation import (
@@ -130,6 +131,8 @@ class IncidentState:
     created_time: int
     urgency: str = "unknown"
     status: str = "waiting"   # waiting | assigned | in_progress | resolved
+    first_arrival_time: int | None = None   # Unix time when first unit arrived on scene
+    resolved_time: int | None = None        # Unix time when all service slots finished
     # Per-service tracking — key is service name e.g. "fire", "police", "medical"
     service_slots: dict = None
 
@@ -148,6 +151,17 @@ class IncidentState:
 # -----------------------------
 
 incidents: dict[str, IncidentState] = {}
+resolved_log: list[dict] = []   # accumulates resolved incident summaries, newest last
+
+auto_gen_config: dict = {
+    "enabled": False,
+    "min_severity": 1,
+    "max_severity": 5,
+    "next_spawn_at": 0.0,  # absolute time.time() of next spawn; 0 = not yet scheduled
+    "last_type": None,
+    "last_location": None,
+    "last_at": None,
+}
 
 G = create_sample_graph()
 buildings = add_buildings(G)
@@ -171,6 +185,8 @@ units = [
     UnitState("p5", "police",  "n1_10"),
 ]
 
+
+UNIT_INITIAL_NODES: dict[str, str] = {u.id: u.current_node for u in units}
 
 engine = PrologEngine()
 
@@ -237,6 +253,10 @@ def handle_unit_arrival(unit_id: str):
     if incident.status == "assigned":
         incident.status = "in_progress"
 
+    # Record response time (creation → first unit on scene)
+    if incident.first_arrival_time is None:
+        incident.first_arrival_time = int(time.time())
+
     # Unit has seen the scene — set this service's on-scene handling time.
     # Uses type + urgency table (more specific than urgency-only).
     on_scene_duration = (ON_SCENE_HANDLING_TIMES
@@ -300,6 +320,20 @@ def handle_unit_finish(unit_id: str):
             all_done = all(s.status == "resolved" for s in incident.service_slots.values())
             if all_done:
                 incident.status = "resolved"
+                now = int(time.time())
+                incident.resolved_time = now
+                response_t = (incident.first_arrival_time - incident.created_time
+                              if incident.first_arrival_time else None)
+                resolved_log.append({
+                    "id": incident_id,
+                    "type": incident.type,
+                    "urgency": incident.urgency,
+                    "response_time": response_t,
+                    "total_time": now - incident.created_time,
+                    "resolved_at": now,
+                })
+                if len(resolved_log) > 50:
+                    resolved_log.pop(0)
                 # Retract incident and all remaining Prolog facts
                 list(engine.prolog.query(f"retractall(incident({incident_id}, _, _, _, _, _))"))
                 list(engine.prolog.query(f"retractall(travel_time(_, {incident_id}, _))"))
@@ -597,6 +631,61 @@ def _check_idle_takeover() -> bool:
     return False
 
 
+def _auto_gen_next_interval(first: bool = False) -> float:
+    """Random seconds until next auto-gen spawn.
+
+    Scaled to fleet size so units stay ~70-80% utilised regardless of how many
+    units are in the simulation.  Formula: mean = 100 / unit_count.
+
+    first=True shortens the wait so enabling feels responsive.
+    """
+    mean = 100.0 / len(units)          # 6.7 s for 15 units, 16.7 s for 6, etc.
+    lo   = max(2.0, mean * 0.30)       # occasional quick bursts
+    hi   = mean * 2.0                  # occasional quiet gaps
+    if first:
+        return random.uniform(lo, mean)    # first spawn within one mean
+    return random.uniform(lo, hi)
+
+
+def _spawn_random_incident():
+    """Create a random incident for the auto-generator."""
+    intersections = [n for n, d in G.nodes(data=True) if d.get("type") == "intersection"]
+    location = random.choice(intersections)
+    incident_type = random.choice(list(REQUIRED_SERVICES.keys()))
+    severity = random.randint(auto_gen_config["min_severity"], auto_gen_config["max_severity"])
+
+    incident_id = f"i{int(time.time()*1000)}"
+    now = int(time.time())
+
+    incident = IncidentState(id=incident_id, type=incident_type,
+                             severity=severity, location=location, created_time=now)
+    incidents[incident_id] = incident
+
+    engine.assert_incident(incident_id, incident_type, severity, location, now)
+
+    urg_result = list(engine.prolog.query(f"incident({incident_id}, _, _, _, _, U)"))
+    if urg_result:
+        incident.urgency = str(urg_result[0]["U"])
+
+    type_table = ESTIMATED_HANDLING_TIMES.get(incident_type, {})
+    est = type_table.get(incident.urgency, 30.0)
+    for svc in REQUIRED_SERVICES.get(incident_type, []):
+        incident.service_slots[svc] = ServiceSlot(service=svc, estimated_handling_time=est)
+
+    for u in units:
+        eta = remaining_time_to_node(u, location, G)
+        engine.assert_travel_time(u.id, incident_id, round(eta, 2))
+
+    auto_gen_config["last_type"] = incident_type
+    auto_gen_config["last_location"] = location
+    auto_gen_config["last_at"] = now
+    # Schedule next spawn at a random future time
+    auto_gen_config["next_spawn_at"] = time.time() + _auto_gen_next_interval()
+
+    print(f"[AUTO-GEN] {incident_id}: {incident_type} sev={severity} @ {location} ({incident.urgency})")
+    reevaluate_system()
+
+
 def reevaluate_system():
     """
     Converging evaluation loop.
@@ -713,6 +802,11 @@ def simulation_loop():
                 if incident.status != "resolved":
                     maybe_escalate_incident(incident, current_time)
 
+            # Auto-incident generation
+            if auto_gen_config["enabled"] and auto_gen_config["next_spawn_at"] > 0:
+                if time.time() >= auto_gen_config["next_spawn_at"]:
+                    _spawn_random_incident()  # sets next_spawn_at internally
+
         except Exception as e:
             import traceback
             print(f"[SIMULATION ERROR] {e}")
@@ -796,7 +890,8 @@ def get_state():
             },
         })
 
-    return {"units": unit_data, "incidents": incident_data}
+    return {"units": unit_data, "incidents": incident_data,
+            "resolved_log": list(reversed(resolved_log[-20:]))}
 
 
 @app.post("/create_incident")
@@ -844,6 +939,76 @@ def create_incident(data: dict = Body(...)):
     reevaluate_system()
 
     return {"message": "Incident registered. System reevaluated."}
+
+
+@app.get("/auto_gen")
+def get_auto_gen():
+    mean = 100.0 / len(units)
+    return {
+        "enabled":        auto_gen_config["enabled"],
+        "min_severity":   auto_gen_config["min_severity"],
+        "max_severity":   auto_gen_config["max_severity"],
+        "next_spawn_at":  auto_gen_config["next_spawn_at"],
+        "last_type":      auto_gen_config["last_type"],
+        "last_location":  auto_gen_config["last_location"],
+        "last_at":        auto_gen_config["last_at"],
+        "interval_lo":    round(max(2.0, mean * 0.30)),
+        "interval_hi":    round(mean * 2.0),
+        "unit_count":     len(units),
+    }
+
+
+@app.post("/auto_gen")
+def set_auto_gen(data: dict = Body(...)):
+    was_enabled = auto_gen_config["enabled"]
+    auto_gen_config["enabled"]      = bool(data.get("enabled", False))
+    auto_gen_config["min_severity"] = max(1, min(5, int(data.get("min_severity", 1))))
+    auto_gen_config["max_severity"] = max(1, min(5, int(data.get("max_severity", 5))))
+    if auto_gen_config["min_severity"] > auto_gen_config["max_severity"]:
+        auto_gen_config["max_severity"] = auto_gen_config["min_severity"]
+    # Schedule first spawn 3–12 s after enabling
+    if auto_gen_config["enabled"] and not was_enabled:
+        auto_gen_config["next_spawn_at"] = time.time() + _auto_gen_next_interval(first=True)
+    return {"ok": True}
+
+
+@app.post("/restart")
+def restart_simulation():
+    # Retract all dynamic Prolog facts
+    list(engine.prolog.query("retractall(incident(_, _, _, _, _, _))"))
+    list(engine.prolog.query("retractall(unit(_, _, _, _, _))"))
+    list(engine.prolog.query("retractall(assigned(_, _))"))
+    list(engine.prolog.query("retractall(pre_assigned(_, _))"))
+    list(engine.prolog.query("retractall(travel_time(_, _, _))"))
+    list(engine.prolog.query("retractall(handling_time(_, _, _))"))
+    list(engine.prolog.query("retractall(service_complete(_, _))"))
+
+    # Clear Python state
+    incidents.clear()
+    resolved_log.clear()
+
+    # Reset units to their starting positions
+    for unit in units:
+        unit.current_node = UNIT_INITIAL_NODES[unit.id]
+        unit.path = []
+        unit.edge_index = 0
+        unit.progress = 0.0
+        unit.status = "idle"
+        unit.handling_remaining = 0.0
+
+    # Re-assert units in Prolog
+    for unit in units:
+        engine.assert_unit(unit.id, unit.service, unit.current_node)
+
+    # Reset auto-gen countdown (keep enabled/severity settings)
+    auto_gen_config["last_type"] = None
+    auto_gen_config["last_location"] = None
+    auto_gen_config["last_at"] = None
+    if auto_gen_config["enabled"]:
+        auto_gen_config["next_spawn_at"] = time.time() + _auto_gen_next_interval(first=True)
+
+    print("[RESTART] Simulation reset.")
+    return {"ok": True}
 
 
 # Serve frontend

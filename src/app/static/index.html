@@ -85,6 +85,55 @@
         #create-form .hint { color: #666; font-size: 11px; margin-top: 2px; }
         #create-status { color: #6af; font-size: 11px; margin-top: 4px; min-height: 16px; }
 
+        /* Stats panel */
+        .stats-summary { display: flex; gap: 16px; margin-bottom: 8px; font-size: 12px; color: #ccc; }
+        .stats-summary span { color: #fff; font-weight: bold; }
+        .stats-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-size: 11px; }
+        .stats-urg { width: 46px; font-weight: bold; }
+        .stats-bar-wrap { width: 60px; background: #333; border-radius: 3px; height: 5px; }
+        .stats-bar { height: 5px; border-radius: 3px; }
+        .stats-count { width: 18px; text-align: right; color: #ccc; }
+        .stats-avg { color: #888; margin-left: 2px; }
+
+        /* Log panel */
+        #log-list { max-height: 200px; overflow-y: auto; }
+        .log-entry {
+            display: flex; align-items: center; gap: 6px;
+            padding: 3px 0; border-bottom: 1px solid #2a2a2a; font-size: 11px;
+        }
+        .log-entry:last-child { border-bottom: none; }
+        .log-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .log-type { flex: 1; color: #ddd; }
+        .log-resp { color: #6af; min-width: 52px; text-align: right; }
+        .log-total { color: #666; min-width: 48px; text-align: right; }
+
+        /* Tab bar */
+        #tab-bar { display: flex; border-bottom: 1px solid #444; flex-shrink: 0; }
+        .tab-btn {
+            flex: 1; background: none; border: none; border-bottom: 2px solid transparent;
+            color: #555; padding: 8px 0; font-family: monospace; font-size: 11px;
+            letter-spacing: 1px; cursor: pointer;
+            transition: color 0.15s ease, border-color 0.15s ease;
+        }
+        .tab-btn:hover { color: #999; }
+        .tab-btn.active { color: #6af; border-bottom-color: #6af; }
+
+        /* Auto-gen panel */
+        .ag-status-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 10px; background: #252525; border-radius: 4px; margin-bottom: 14px;
+        }
+        #ag-toggle-btn {
+            background: #2a2a2a; border: 1px solid #555; color: #aaa;
+            padding: 5px 14px; border-radius: 3px; cursor: pointer;
+            font-size: 11px; font-family: monospace; letter-spacing: 1px;
+            transition: background 0.2s, border-color 0.2s, color 0.2s;
+        }
+        .ag-label { font-size: 11px; color: #aaa; margin-bottom: 5px; }
+        .ag-divider { border: none; border-top: 1px solid #333; margin: 12px 0; }
+        .ag-live { font-size: 11px; color: #666; }
+        .ag-live div { margin-bottom: 3px; }
+
         .road { stroke: #666; stroke-width: 6; stroke-linecap: round; }
         .intersection { fill: #555; cursor: pointer; }
         .intersection:hover { fill: #aaa; }
@@ -105,6 +154,17 @@
     <svg id="map"></svg>
 
     <div id="sidebar">
+
+        <div id="tab-bar">
+            <button class="tab-btn active" id="tab-btn-dispatch" onclick="switchTab('dispatch')">DISPATCH</button>
+            <button class="tab-btn" id="tab-btn-autogen" onclick="switchTab('autogen')">AUTO-GEN</button>
+            <button id="restart-btn" onclick="restartSim()" title="Restart simulation"
+                style="background:none; border:none; border-left:1px solid #333; color:#555;
+                       padding:0 12px; cursor:pointer; font-size:14px; transition:color 0.15s;"
+                onmouseover="this.style.color='#f44'" onmouseout="this.style.color='#555'">↺</button>
+        </div>
+
+        <div id="tab-dispatch" style="display:flex; flex-direction:column; gap:10px;">
 
         <div id="create-form">
             <h3>REPORT INCIDENT</h3>
@@ -154,6 +214,15 @@
             <div id="create-status"></div>
         </div>
 
+        <div class="panel" id="stats-panel">
+            <h3>STATS</h3>
+            <div class="stats-summary">
+                <div>Resolved: <span id="stats-total">0</span></div>
+                <div>Avg response: <span id="stats-avg">—</span></div>
+            </div>
+            <div id="stats-breakdown"></div>
+        </div>
+
         <div class="panel" id="inc-panel">
             <h3>INCIDENTS</h3>
             <div id="inc-list"><span style="color:#555">(none)</span></div>
@@ -163,6 +232,57 @@
             <h3>UNITS</h3>
             <div id="unit-list"></div>
         </div>
+
+        <div class="panel" id="log-panel">
+            <h3>RESOLVED LOG</h3>
+            <div id="log-list"><span style="color:#555">(none yet)</span></div>
+        </div>
+
+        </div><!-- end tab-dispatch -->
+
+        <div id="tab-autogen" style="display:none; flex-direction:column; gap:10px; opacity:0;">
+            <div class="panel">
+                <h3>AUTO-INCIDENT GENERATOR</h3>
+
+                <div class="ag-status-bar">
+                    <div>
+                        <span id="ag-dot" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#444; margin-right:6px; transition:background 0.2s;"></span>
+                        <span id="ag-status-text" style="font-size:12px; color:#888; transition:color 0.2s;">INACTIVE</span>
+                    </div>
+                    <button id="ag-toggle-btn" onclick="toggleAutoGen()">ENABLE</button>
+                </div>
+
+                <div class="ag-label">Severity range</div>
+                <div style="display:flex; gap:8px; align-items:center; font-size:11px;">
+                    <span style="color:#666;">Min</span>
+                    <select id="ag-min-sev" onchange="applyAutoGen()"
+                        style="flex:1; background:#2a2a2a; border:1px solid #555; color:#eee; padding:3px 5px; border-radius:3px; font-size:11px;">
+                        <option value="1" selected>1 — Minor</option>
+                        <option value="2">2 — Low</option>
+                        <option value="3">3 — Medium</option>
+                        <option value="4">4 — High</option>
+                        <option value="5">5 — Critical</option>
+                    </select>
+                    <span style="color:#666;">Max</span>
+                    <select id="ag-max-sev" onchange="applyAutoGen()"
+                        style="flex:1; background:#2a2a2a; border:1px solid #555; color:#eee; padding:3px 5px; border-radius:3px; font-size:11px;">
+                        <option value="1">1 — Minor</option>
+                        <option value="2">2 — Low</option>
+                        <option value="3">3 — Medium</option>
+                        <option value="4">4 — High</option>
+                        <option value="5" selected>5 — Critical</option>
+                    </select>
+                </div>
+
+                <hr class="ag-divider">
+
+                <div class="ag-live">
+                    <div>Interval: <span id="ag-interval-info" style="color:#555;">—</span></div>
+                    <div>Next spawn: <span id="ag-next-spawn" style="color:#aaa;">—</span></div>
+                    <div>Last spawned: <span id="ag-last" style="color:#aaa;">—</span></div>
+                </div>
+            </div>
+        </div><!-- end tab-autogen -->
 
     </div>
 </div>
@@ -417,6 +537,58 @@ async function update() {
         }).join("");
     }
 
+    // --- Stats panel ---
+    const log = data.resolved_log || [];
+    const URGENCY_ORDER = ["low", "medium", "high", "critical"];
+    const URGENCY_SHORT = { low: "LOW", medium: "MED", high: "HIGH", critical: "CRIT" };
+
+    document.getElementById("stats-total").textContent = log.length;
+
+    const allWithResp = log.filter(e => e.response_time != null);
+    const avgAll = allWithResp.length
+        ? Math.round(allWithResp.reduce((s, e) => s + e.response_time, 0) / allWithResp.length)
+        : null;
+    document.getElementById("stats-avg").textContent = avgAll != null ? avgAll + "s" : "—";
+
+    const byUrg = {};
+    for (const e of log) {
+        if (!byUrg[e.urgency]) byUrg[e.urgency] = [];
+        byUrg[e.urgency].push(e);
+    }
+    const maxCount = Math.max(1, ...URGENCY_ORDER.map(u => (byUrg[u] || []).length));
+    document.getElementById("stats-breakdown").innerHTML = URGENCY_ORDER.map(urg => {
+        const entries = byUrg[urg] || [];
+        if (entries.length === 0) return "";
+        const withResp = entries.filter(e => e.response_time != null);
+        const avg = withResp.length
+            ? Math.round(withResp.reduce((s, e) => s + e.response_time, 0) / withResp.length)
+            : null;
+        const barW = Math.round((entries.length / maxCount) * 60);
+        return `<div class="stats-row">
+            <span class="stats-urg" style="color:${URGENCY_COLOR[urg]}">${URGENCY_SHORT[urg]}</span>
+            <div class="stats-bar-wrap"><div class="stats-bar" style="width:${barW}px;background:${URGENCY_COLOR[urg]}"></div></div>
+            <span class="stats-count">${entries.length}</span>
+            <span class="stats-avg">${avg != null ? "avg " + avg + "s" : ""}</span>
+        </div>`;
+    }).join("");
+
+    // --- Log panel ---
+    const logList = document.getElementById("log-list");
+    if (log.length === 0) {
+        logList.innerHTML = '<span style="color:#555">(none yet)</span>';
+    } else {
+        logList.innerHTML = log.slice(0, 15).map(e => {
+            const resp = e.response_time != null ? e.response_time + "s" : "—";
+            const total = e.total_time != null ? e.total_time + "s" : "—";
+            return `<div class="log-entry">
+                <div class="log-dot" style="background:${URGENCY_COLOR[e.urgency] || '#888'}"></div>
+                <span class="log-type">${TYPE_ICON[e.type] || "?"} ${e.type.toUpperCase()} · ${URGENCY_SHORT[e.urgency] || e.urgency}</span>
+                <span class="log-resp" title="Time to first unit on scene">↓${resp}</span>
+                <span class="log-total" title="Total incident duration">${total}</span>
+            </div>`;
+        }).join("");
+    }
+
     // --- Unit panel ---
     document.getElementById("unit-list").innerHTML = data.units.map(u => {
         const dot = `<div class="unit-dot" style="background:${SERVICE_COLOR[u.service]||'#aaa'};opacity:${u.status==='idle'?0.4:1}"></div>`;
@@ -433,8 +605,124 @@ async function update() {
     }).join("");
 }
 
+// ── Tab switching ──────────────────────────────────────────────────────────
+let currentTab = 'dispatch';
+
+function switchTab(tab) {
+    if (tab === currentTab) return;
+    const outEl = document.getElementById('tab-' + currentTab);
+    const inEl  = document.getElementById('tab-' + tab);
+
+    outEl.style.transition = 'opacity 0.15s ease';
+    outEl.style.opacity = '0';
+
+    setTimeout(() => {
+        outEl.style.display = 'none';
+        outEl.style.transition = '';
+        outEl.style.opacity = '';
+
+        inEl.style.display = 'flex';
+        inEl.style.flexDirection = 'column';
+        inEl.style.gap = '10px';
+        inEl.style.opacity = '0';
+        inEl.style.transition = '';
+        inEl.getBoundingClientRect(); // force reflow before transition
+        inEl.style.transition = 'opacity 0.15s ease';
+        inEl.style.opacity = '1';
+
+        currentTab = tab;
+    }, 150);
+
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-btn-' + tab).classList.add('active');
+}
+
+// ── Auto-gen ───────────────────────────────────────────────────────────────
+let _agEnabled = false;
+
+async function refreshAutoGen() {
+    try {
+        const d = await (await fetch('/auto_gen')).json();
+        _agEnabled = d.enabled;
+
+        document.getElementById('ag-min-sev').value = d.min_severity;
+        document.getElementById('ag-max-sev').value = d.max_severity;
+        document.getElementById('ag-interval-info').textContent =
+            `${d.interval_lo}–${d.interval_hi}s  (${d.unit_count} units)`;
+
+        // Status indicator
+        const dot = document.getElementById('ag-dot');
+        const txt = document.getElementById('ag-status-text');
+        const btn = document.getElementById('ag-toggle-btn');
+        if (d.enabled) {
+            dot.style.background = '#44ff44';
+            txt.textContent = 'ACTIVE'; txt.style.color = '#44ff44';
+            btn.textContent = 'DISABLE';
+            btn.style.background = '#1a3a1a'; btn.style.borderColor = '#44ff44'; btn.style.color = '#44ff44';
+        } else {
+            dot.style.background = '#444';
+            txt.textContent = 'INACTIVE'; txt.style.color = '#888';
+            btn.textContent = 'ENABLE';
+            btn.style.background = '#2a2a2a'; btn.style.borderColor = '#555'; btn.style.color = '#aaa';
+        }
+
+        // Next spawn countdown (next_spawn_at is a Unix timestamp from the server)
+        const nextEl = document.getElementById('ag-next-spawn');
+        if (d.enabled && d.next_spawn_at > 0) {
+            const remaining = Math.max(0, d.next_spawn_at - Date.now() / 1000);
+            nextEl.textContent = remaining < 1 ? 'any moment...' : Math.ceil(remaining) + 's';
+            nextEl.style.color = remaining < 4 ? '#f90' : '#aaa';
+        } else {
+            nextEl.textContent = '—'; nextEl.style.color = '#aaa';
+        }
+
+        // Last spawned
+        const lastEl = document.getElementById('ag-last');
+        if (d.last_type && d.last_at) {
+            const ago = Math.round(Date.now() / 1000 - d.last_at);
+            lastEl.textContent = `${TYPE_ICON[d.last_type] || '?'} ${d.last_type.toUpperCase()} @ ${d.last_location} (${ago}s ago)`;
+        } else {
+            lastEl.textContent = '—';
+        }
+    } catch(e) {}
+}
+
+async function toggleAutoGen() {
+    await fetch('/auto_gen', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            enabled: !_agEnabled,
+            min_severity: parseInt(document.getElementById('ag-min-sev').value),
+            max_severity: parseInt(document.getElementById('ag-max-sev').value),
+        })
+    });
+    await refreshAutoGen();
+}
+
+async function applyAutoGen() {
+    let minSev = parseInt(document.getElementById('ag-min-sev').value);
+    let maxSev = parseInt(document.getElementById('ag-max-sev').value);
+    if (minSev > maxSev) { maxSev = minSev; document.getElementById('ag-max-sev').value = maxSev; }
+    await fetch('/auto_gen', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ enabled: _agEnabled, min_severity: minSev, max_severity: maxSev })
+    });
+    await refreshAutoGen();
+}
+
+async function restartSim() {
+    const btn = document.getElementById('restart-btn');
+    btn.style.color = '#f44';
+    btn.textContent = '…';
+    await fetch('/restart', { method: 'POST' });
+    btn.textContent = '↺';
+    btn.style.color = '#555';
+}
+
 loadGraph();
 setInterval(update, 100);
+setInterval(refreshAutoGen, 1000);
+refreshAutoGen();
 </script>
 
 </body>
